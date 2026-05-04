@@ -1,6 +1,6 @@
-# greninger-lab/tpallidum-denovoasm: Documentation
+# greninger-lab/tpallidum_denovoasm: Documentation
 
-The greninger-lab/tpallidum-denovoasm documentation is split into the following pages:
+The greninger-lab/tpallidum_denovoasm documentation is split into the following pages:
 
 - [Usage](usage.md)
   - An overview of how the pipeline works, how to run it and a description of all of the different command-line flags.

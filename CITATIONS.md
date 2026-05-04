@@ -1,4 +1,4 @@
-# greninger-lab/tpallidum-denovoasm: Citations
+# greninger-lab/tpallidum_denovoasm: Citations
 
 ## [nf-core](https://pubmed.ncbi.nlm.nih.gov/32055031/)
 

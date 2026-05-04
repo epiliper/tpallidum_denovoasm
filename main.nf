@@ -1,9 +1,9 @@
 #!/usr/bin/env nextflow
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    greninger-lab/tpallidum-denovoasm
+    greninger-lab/tpallidum_denovoasm
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    Github : https://github.com/greninger-lab/tpallidum-denovoasm
+    Github : https://github.com/greninger-lab/tpallidum_denovoasm
 ----------------------------------------------------------------------------------------
 */
 
@@ -13,9 +13,9 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-include { TPALLIDUM-DENOVOASM  } from './workflows/tpallidum-denovoasm'
-include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_tpallidum-denovoasm_pipeline'
-include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_tpallidum-denovoasm_pipeline'
+include { TPALLIDUM_DENOVOASM     } from './workflows/tpallidum_denovoasm'
+include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_tpallidum_denovoasm_pipeline'
+include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_tpallidum_denovoasm_pipeline'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     NAMED WORKFLOWS FOR PIPELINE
@@ -25,7 +25,7 @@ include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_tpal
 //
 // WORKFLOW: Run main analysis pipeline depending on type of input
 //
-workflow GRENINGERLAB_TPALLIDUM-DENOVOASM {
+workflow GRENINGERLAB_TPALLIDUM_DENOVOASM {
 
     take:
     samplesheet // channel: samplesheet read in from --input
@@ -35,15 +35,17 @@ workflow GRENINGERLAB_TPALLIDUM-DENOVOASM {
     //
     // WORKFLOW: Run pipeline
     //
-    TPALLIDUM-DENOVOASM (
+    TPALLIDUM_DENOVOASM (
         samplesheet,
+        params.ref,
+        params.bbduk_filter,
         params.multiqc_config,
         params.multiqc_logo,
         params.multiqc_methods_description,
         params.outdir,
     )
     emit:
-    multiqc_report = TPALLIDUM-DENOVOASM.out.multiqc_report // channel: /path/to/multiqc_report.html
+    multiqc_report = TPALLIDUM_DENOVOASM.out.multiqc_report // channel: /path/to/multiqc_report.html
 }
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -72,7 +74,7 @@ workflow {
     //
     // WORKFLOW: Run main workflow
     //
-    GRENINGERLAB_TPALLIDUM-DENOVOASM (
+    GRENINGERLAB_TPALLIDUM_DENOVOASM (
         PIPELINE_INITIALISATION.out.samplesheet
     )
     //
@@ -84,7 +86,7 @@ workflow {
         params.plaintext_email,
         params.outdir,
         params.monochrome_logs,
-        GRENINGERLAB_TPALLIDUM-DENOVOASM.out.multiqc_report
+        GRENINGERLAB_TPALLIDUM_DENOVOASM.out.multiqc_report
     )
 }
 

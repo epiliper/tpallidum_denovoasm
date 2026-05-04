@@ -1,5 +1,5 @@
 //
-// Subworkflow with functionality specific to the greninger-lab/tpallidum-denovoasm pipeline
+// Subworkflow with functionality specific to the greninger-lab/tpallidum_denovoasm pipeline
 //
 
 /*
@@ -85,14 +85,16 @@ workflow PIPELINE_INITIALISATION {
     // Create channel from input file provided through params.input
     //
 
+    // NOTE: if genomic NA (gna) is single-end, we assume that tRNA and rRNA are as well.
+    // For each NA type, we return a list, such that we emit 1 meta + 3 tuples.
     channel
         .fromList(samplesheetToList(input, "${projectDir}/assets/schema_input.json"))
         .map {
-            meta, fastq_1, fastq_2 ->
-                if (!fastq_2) {
-                    return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
+            meta, gna_fastq_1, gna_fastq_2, trna_fastq_1, trna_fastq_2, rrna_fastq_1, rrna_fastq_2 ->
+                if (!gna_fastq_2) {
+                    return [ meta.id, meta + [ single_end:true ], [ [ gna_fastq_1 ] , [ trna_fastq_1 ] , [ rrna_fastq_1 ] ] ]
                 } else {
-                    return [ meta.id, meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
+                    return [ meta.id, meta + [ single_end:false ], [ [ gna_fastq_1, gna_fastq_2 ], [ trna_fastq_1, trna_fastq_2 ], [ rrna_fastq_1, rrna_fastq_2 ] ] ]
                 }
         }
         .groupTuple()

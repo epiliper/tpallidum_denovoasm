@@ -1,4 +1,4 @@
-# greninger-lab/tpallidum-denovoasm: Output
+# greninger-lab/tpallidum_denovoasm: Output
 
 ## Introduction
 

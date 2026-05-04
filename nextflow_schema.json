@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://raw.githubusercontent.com/greninger-lab/tpallidum-denovoasm/master/nextflow_schema.json",
-    "title": "greninger-lab/tpallidum-denovoasm pipeline parameters",
+    "$id": "https://raw.githubusercontent.com/greninger-lab/tpallidum_denovoasm/master/nextflow_schema.json",
+    "title": "greninger-lab/tpallidum_denovoasm pipeline parameters",
     "description": "De novo assembly of Treponema pallidum",
     "type": "object",
     "$defs": {
