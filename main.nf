@@ -13,9 +13,9 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-include { TPALLIDUM_DENOVOASM     } from './workflows/tpallidum_denovoasm'
+include { TPALLIDUM_DENOVOASM } from './workflows/tpallidum_denovoasm'
 include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_tpallidum_denovoasm_pipeline'
-include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_tpallidum_denovoasm_pipeline'
+include { PIPELINE_COMPLETION } from './subworkflows/local/utils_nfcore_tpallidum_denovoasm_pipeline'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     NAMED WORKFLOWS FOR PIPELINE
@@ -26,7 +26,6 @@ include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_tpal
 // WORKFLOW: Run main analysis pipeline depending on type of input
 //
 workflow GRENINGERLAB_TPALLIDUM_DENOVOASM {
-
     take:
     samplesheet // channel: samplesheet read in from --input
 
@@ -35,17 +34,19 @@ workflow GRENINGERLAB_TPALLIDUM_DENOVOASM {
     //
     // WORKFLOW: Run pipeline
     //
-    TPALLIDUM_DENOVOASM (
+    TPALLIDUM_DENOVOASM(
         samplesheet,
-        params.ref,
+        params.refs,
         params.bbduk_filter,
-        params.multiqc_config,
-        params.multiqc_logo,
-        params.multiqc_methods_description,
-        params.outdir,
+        params.min_contig_len_bp,
+        // params.multiqc_config,
+        // params.multiqc_logo,
+        // params.multiqc_methods_description,
+        params.outdir
     )
-    emit:
-    multiqc_report = TPALLIDUM_DENOVOASM.out.multiqc_report // channel: /path/to/multiqc_report.html
+
+    // emit:
+    // multiqc_report = TPALLIDUM_DENOVOASM.out.multiqc_report // channel: /path/to/multiqc_report.html
 }
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -54,12 +55,10 @@ workflow GRENINGERLAB_TPALLIDUM_DENOVOASM {
 */
 
 workflow {
-
-    main:
     //
     // SUBWORKFLOW: Run initialisation tasks
     //
-    PIPELINE_INITIALISATION (
+    PIPELINE_INITIALISATION(
         params.version,
         params.validate_params,
         params.monochrome_logs,
@@ -68,30 +67,24 @@ workflow {
         params.input,
         params.help,
         params.help_full,
-        params.show_hidden
+        params.show_hidden,
     )
 
     //
     // WORKFLOW: Run main workflow
     //
-    GRENINGERLAB_TPALLIDUM_DENOVOASM (
+    GRENINGERLAB_TPALLIDUM_DENOVOASM(
         PIPELINE_INITIALISATION.out.samplesheet
     )
     //
     // SUBWORKFLOW: Run completion tasks
     //
-    PIPELINE_COMPLETION (
-        params.email,
-        params.email_on_fail,
-        params.plaintext_email,
-        params.outdir,
-        params.monochrome_logs,
-        GRENINGERLAB_TPALLIDUM_DENOVOASM.out.multiqc_report
-    )
+    // PIPELINE_COMPLETION(
+    //     params.email,
+    //     params.email_on_fail,
+    //     params.plaintext_email,
+    //     params.outdir,
+    //     params.monochrome_logs,
+    //     GRENINGERLAB_TPALLIDUM_DENOVOASM.out.multiqc_report,
+    // )
 }
-
-/*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    THE END
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-*/

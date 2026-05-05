@@ -8,7 +8,7 @@ process SAMTOOLS_FAIDX {
         : 'community.wave.seqera.io/library/htslib_samtools:1.23.1--5b6bb4ede7e612e5'}"
 
     input:
-    tuple val(meta), path(fasta), path(fai)
+    tuple val(meta), path(fasta)
     val get_sizes
 
     output:
@@ -23,27 +23,12 @@ process SAMTOOLS_FAIDX {
 
     script:
     def args = task.ext.args ?: ''
-    def get_sizes_command = get_sizes ? "cut -f 1,2 ${fasta}.fai > ${fasta}.sizes" : ''
     """
     samtools \\
         faidx \\
         ${fasta} \\
         ${args}
 
-    ${get_sizes_command}
     """
 
-    stub:
-    def match = (task.ext.args =~ /-o(?:utput)?\s(.*)\s?/).findAll()
-    def fastacmd = match[0] ? "touch ${match[0][1]}" : ''
-    def get_sizes_command = get_sizes ? "touch ${fasta}.sizes" : ''
-    """
-    ${fastacmd}
-    touch ${fasta}.fai
-    if [[ "${fasta.extension}" == "gz" ]]; then
-        touch ${fasta}.gzi
-    fi
-
-    ${get_sizes_command}
-    """
 }

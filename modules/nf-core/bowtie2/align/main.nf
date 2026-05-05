@@ -11,16 +11,12 @@ process BOWTIE2_ALIGN {
     tuple val(meta) , path(reads)
     tuple val(meta2), path(index)
     tuple val(meta3), path(fasta), path(fai)
+    val   suffix
     val   save_unaligned
     val   sort_bam
 
     output:
-    tuple val(meta), path("*.sam")      , emit: sam     , optional:true
     tuple val(meta), path("*.bam")      , emit: bam
-    tuple val(meta), path("*.cram")     , emit: cram    , optional:true
-    tuple val(meta), path("*.csi")      , emit: csi     , optional:true
-    tuple val(meta), path("*.crai")     , emit: crai    , optional:true
-    tuple val(meta), path("*.log")      , emit: log
     tuple val(meta), path("*fastq.gz")  , emit: fastq   , optional:true
     tuple val("${task.process}"), val('bowtie2'), eval("bowtie2 --version 2>&1 | sed -n 's/.*bowtie2-align-s version //p'"), emit: versions_bowtie2, topic: versions
     tuple val("${task.process}"), val('samtools'), eval("samtools version | sed '1!d;s/.* //'"), emit: versions_samtools, topic: versions
@@ -45,12 +41,8 @@ process BOWTIE2_ALIGN {
         reads_args = "-1 ${reads[0]} -2 ${reads[1]}"
     }
 
-    def samtools_command = sort_bam ? 'sort' : 'view'
-    def extension_pattern = /(--output-fmt|-O)+\s+(\S+)/
-    def extension_matcher =  (args2 =~ extension_pattern)
-    def extension = extension_matcher.getCount() > 0 ? extension_matcher[0][2].toLowerCase() : "bam"
-    def reference = fasta && extension=="cram"  ? "--reference ${fasta}" : ""
-    if (!fasta && extension=="cram") error "Fasta reference is required for CRAM output"
+    def bowtie2_out = sort_bam ? "temp.bam" : "${prefix}_${suffix}.bam"
+    def sort_cmd = sort_bam ? "samtools sort -@ ${task.cpus} -o ${prefix}_${suffix}.bam ${bowtie2_out} && rm ${bowtie2_out}" : ""
 
     """
     INDEX=`find -L ./ -name "*.rev.1.bt2" | sed "s/\\.rev.1.bt2\$//"`
@@ -64,8 +56,7 @@ process BOWTIE2_ALIGN {
         $unaligned \\
         $rg \\
         $args \\
-        2>| >(tee ${prefix}.bowtie2.log >&2) \\
-        | samtools $samtools_command $args2 --threads $task.cpus ${reference} -o ${prefix}.${extension} -
+        2>| >(tee ${prefix}.bowtie2.log >&2) \\ | samtools view -hb $args2 --threads $task.cpus > ${bowtie2_out}
 
     if [ -f ${prefix}.unmapped.fastq.1.gz ]; then
         mv ${prefix}.unmapped.fastq.1.gz ${prefix}.unmapped_1.fastq.gz
@@ -74,6 +65,8 @@ process BOWTIE2_ALIGN {
     if [ -f ${prefix}.unmapped.fastq.2.gz ]; then
         mv ${prefix}.unmapped.fastq.2.gz ${prefix}.unmapped_2.fastq.gz
     fi
+
+    ${sort_cmd}
     """
 
     stub:

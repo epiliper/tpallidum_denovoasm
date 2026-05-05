@@ -89,23 +89,15 @@ workflow PIPELINE_INITIALISATION {
     // For each NA type, we return a list, such that we emit 1 meta + 3 tuples.
     channel
         .fromList(samplesheetToList(input, "${projectDir}/assets/schema_input.json"))
-        .map {
-            meta, gna_fastq_1, gna_fastq_2, trna_fastq_1, trna_fastq_2, rrna_fastq_1, rrna_fastq_2 ->
-                if (!gna_fastq_2) {
-                    return [ meta.id, meta + [ single_end:true ], [ [ gna_fastq_1 ] , [ trna_fastq_1 ] , [ rrna_fastq_1 ] ] ]
-                } else {
-                    return [ meta.id, meta + [ single_end:false ], [ [ gna_fastq_1, gna_fastq_2 ], [ trna_fastq_1, trna_fastq_2 ], [ rrna_fastq_1, rrna_fastq_2 ] ] ]
-                }
-        }
-        .groupTuple()
-        .map { samplesheet ->
-            validateInputSamplesheet(samplesheet)
-        }
-        .map {
-            meta, fastqs ->
-                return [ meta, fastqs.flatten() ]
+        .map { meta, gna_fastq_1, gna_fastq_2, trna_fastq_1, trna_fastq_2, rrna_fastq_1, rrna_fastq_2 ->
+            if (!gna_fastq_2) {
+                [ meta + [ single_end:true ], [ [ gna_fastq_1 ] , [ trna_fastq_1 ] , [ rrna_fastq_1 ] ] ]
+            } else {
+                [ meta + [ single_end:false ], [ [ gna_fastq_1, gna_fastq_2 ], [ trna_fastq_1, trna_fastq_2 ], [ rrna_fastq_1, rrna_fastq_2 ] ] ]
+            }
         }
         .set { ch_samplesheet }
+
 
     emit:
     samplesheet = ch_samplesheet

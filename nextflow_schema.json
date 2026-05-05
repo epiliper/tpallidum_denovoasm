@@ -23,6 +23,22 @@
                     "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 3 columns, and a header row.",
                     "fa_icon": "fas fa-file-csv"
                 },
+                "refs": {
+                	"type": "string",
+                	"format": "path",
+                	"description": "reference database to use"
+                },
+                "bbduk_filter": {
+                	"type": "string",
+                	"format": "path",
+                	"description": ""
+                },
+
+                "min_contig_len_bp": {
+                	"type": "integer",
+                	"format": "path",
+                	"description": "min contig length to use in scaffolding"
+                },
                 "outdir": {
                     "type": "string",
                     "format": "directory-path",
