@@ -167,10 +167,10 @@ workflow TPALLIDUM_DENOVOASM {
 
     BWA_MEM_ALIGN_ROUND1.out.bam.join(chosen_ref_ch).multiMap{ meta, bam, chosen_ref -> 
         bam_ch: [ meta, bam ]
-        ref_ch: [ meta, chosen_ref ]
-    }.set { ivar_input }
+        ref_ch: [ chosen_ref ]
+    }.set { ivar_input_r1 }
 
-    IVAR_CONSENSUS_ROUND1(ivar_input.bam_ch, ivar_input.ref_ch, false)
+    IVAR_CONSENSUS_ROUND1(ivar_input_r1.bam_ch, ivar_input_r1.ref_ch, "cons_intermediate", false)
 
     BWA_INDEX_ROUND2(IVAR_CONSENSUS_ROUND1.out.fasta)
     bwa_mem_aln_channel(fastq_ch, BWA_INDEX_ROUND2.out.index, chosen_ref_ch).set { aln_channels }
@@ -178,11 +178,11 @@ workflow TPALLIDUM_DENOVOASM {
 
     BWA_MEM_ALIGN_ROUND2.out.bam.join(IVAR_CONSENSUS_ROUND1.out.fasta).multiMap{ meta, bam, chosen_ref -> 
         bam_ch: [ meta, bam ]
-        ref_ch: [ meta, chosen_ref ]
-    }.set { ivar_input }
+        ref_ch: [ chosen_ref ]
+    }.set { ivar_input_r2 }
 
 
-    IVAR_CONSENSUS_ROUND2(ivar_input.bam_ch, ivar_input.ref_ch, false)
+    IVAR_CONSENSUS_ROUND2(ivar_input_r2.bam_ch, ivar_input_r2.ref_ch, "cons_final", false)
 
     /// END: CORE WORKFLOW EP ///
     ////////////////////////////

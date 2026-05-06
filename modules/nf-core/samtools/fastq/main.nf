@@ -1,3 +1,4 @@
+// modified by EP to sort beforehand
 process SAMTOOLS_FASTQ {
     tag "${meta.id}"
     label 'process_low'
@@ -31,13 +32,19 @@ process SAMTOOLS_FASTQ {
             : "-1 ${prefix}_1.fastq.gz -2 ${prefix}_2.fastq.gz -s ${prefix}_singleton.fastq.gz"
     """
     # Note: --threads value represents *additional* CPUs to allocate (total CPUs = 1 + --threads).
+
+    # sort by read name
+    samtools sort -@ ${task.cpus} -N -o __tmp.bam $input
+
     samtools \\
         fastq \\
         ${args} \\
         --threads ${task.cpus - 1} \\
         -0 ${prefix}_other.fastq.gz \\
-        ${input} \\
+        __tmp.bam \\
         ${output}
+
+    rm __tmp.bam
     """
 
     stub:

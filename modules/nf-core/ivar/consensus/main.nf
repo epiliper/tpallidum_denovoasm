@@ -10,6 +10,7 @@ process IVAR_CONSENSUS {
     input:
     tuple val(meta), path(bam)
     path fasta
+    val suffix
     val save_mpileup
 
     output:
@@ -36,7 +37,7 @@ process IVAR_CONSENSUS {
         | ivar \\
             consensus \\
             $args \\
-            -p $prefix
+            -p ${prefix}_${suffix}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
@@ -48,8 +49,8 @@ process IVAR_CONSENSUS {
     def prefix = task.ext.prefix ?: "${meta.id}"
     def touch_mpileup = save_mpileup ? "touch ${prefix}.mpileup" : ''
     """
-    touch ${prefix}.fa
-    touch ${prefix}.qual.txt
+    touch ${prefix}_${suffix}.fa
+    touch ${prefix}_${suffix}.qual.txt
     $touch_mpileup
 
     cat <<-END_VERSIONS > versions.yml
