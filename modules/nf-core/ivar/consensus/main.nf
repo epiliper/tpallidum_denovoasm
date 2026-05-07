@@ -8,8 +8,7 @@ process IVAR_CONSENSUS {
         'quay.io/biocontainers/ivar:1.4.4--h077b44d_0' }"
 
     input:
-    tuple val(meta), path(bam)
-    path fasta
+    tuple val(meta), path(bam), path(fasta)
     val suffix
     val save_mpileup
 

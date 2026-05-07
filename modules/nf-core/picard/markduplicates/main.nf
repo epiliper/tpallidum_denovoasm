@@ -8,8 +8,7 @@ process PICARD_MARKDUPLICATES {
         : 'community.wave.seqera.io/library/picard:3.4.0--e9963040df0a9bf6'}"
 
     input:
-    tuple val(meta), path(reads)
-    tuple val(meta2), path(fasta), path(fai)
+    tuple val(meta), path(reads), path(fasta), path(fai)
 
     output:
     tuple val(meta), path("*.bam"), emit: bam, optional: true
@@ -38,14 +37,26 @@ process PICARD_MARKDUPLICATES {
         error("Input and output names are the same, use \"task.ext.prefix\" to disambiguate!")
     }
     """
+    # to make picard happy
+    picard AddOrReplaceReadGroups \
+          I=${reads}\
+          O=${prefix}_rg.bam \
+          RGID=0 \
+          RGLB=0 \
+          RGPL=0 \
+          RGPU=0 \
+          RGSM=${meta.id}
+
     picard \\
         -Xmx${avail_mem}M \\
         MarkDuplicates \\
         ${args} \\
-        --INPUT ${reads} \\
+        --INPUT ${prefix}_rg.bam \\
         --OUTPUT ${prefix}.${suffix} \\
         ${reference} \\
         --METRICS_FILE ${prefix}.metrics.txt
+
+    rm ${prefix}_rg.bam
     """
 
     stub:

@@ -8,10 +8,9 @@ process BWA_MEM {
         'community.wave.seqera.io/library/bwa_htslib_samtools:83b50ff84ead50d0' }"
 
     input:
-    tuple val(meta) , path(reads)
-    tuple val(meta2), path(index)
-    tuple val(meta3), path(fasta)
-    val   sort_bam
+    tuple val(meta), path(reads), path(index)
+    val suffix
+    val sort_bam
 
     output:
     tuple val(meta), path("*.bam")  , emit: bam,    optional: true
@@ -34,8 +33,6 @@ process BWA_MEM {
                     sort_bam && args2.contains("-O cram")? "cram":
                     !sort_bam && args2.contains("-C")    ? "cram":
                     "bam"
-    def reference = fasta && extension=="cram"  ? "--reference ${fasta}" : ""
-    if (!fasta && extension=="cram") error "Fasta reference is required for CRAM output"
     """
     INDEX=`find -L ./ -name "*.amb" | sed 's/\\.amb\$//'`
 
@@ -44,20 +41,6 @@ process BWA_MEM {
         -t $task.cpus \\
         \$INDEX \\
         $reads \\
-        | samtools $samtools_command $args2 ${reference} --threads $task.cpus -o ${prefix}.${extension} -
-    """
-
-    stub:
-    def args2 = task.ext.args2 ?: ''
-    def prefix = task.ext.prefix ?: "${meta.id}"
-    def extension = args2.contains("--output-fmt sam")   ? "sam" :
-                    args2.contains("--output-fmt cram")  ? "cram":
-                    sort_bam && args2.contains("-O cram")? "cram":
-                    !sort_bam && args2.contains("-C")    ? "cram":
-                    "bam"
-    """
-    touch ${prefix}.${extension}
-    touch ${prefix}.csi
-    touch ${prefix}.crai
+        | samtools $samtools_command $args2 --threads $task.cpus -o ${prefix}_${suffix}.${extension} -
     """
 }

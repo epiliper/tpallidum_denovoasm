@@ -8,9 +8,7 @@ process BOWTIE2_ALIGN {
         'community.wave.seqera.io/library/bowtie2_htslib_samtools_pigz:edeb13799090a2a6' }"
 
     input:
-    tuple val(meta) , path(reads)
-    tuple val(meta2), path(index)
-    tuple val(meta3), path(fasta), path(fai)
+    tuple val(meta), path(reads), path(index)
     val   suffix
     val   save_unaligned
     val   sort_bam
@@ -68,32 +66,4 @@ process BOWTIE2_ALIGN {
 
     ${sort_cmd}
     """
-
-    stub:
-    def args2 = task.ext.args2 ?: ""
-    def prefix = task.ext.prefix ?: "${meta.id}"
-    def extension_pattern = /(--output-fmt|-O)+\s+(\S+)/
-    def extension = (args2 ==~ extension_pattern) ? (args2 =~ extension_pattern)[0][2].toLowerCase() : "bam"
-    def create_unmapped = ""
-    if (meta.single_end) {
-        create_unmapped = save_unaligned ? "echo | gzip > ${prefix}.unmapped.fastq.gz" : ""
-    } else {
-        create_unmapped = save_unaligned ? "echo | gzip > ${prefix}.unmapped_1.fastq.gz && echo | gzip > ${prefix}.unmapped_2.fastq.gz" : ""
-    }
-    if (!fasta && extension=="cram") error "Fasta reference is required for CRAM output"
-
-    def create_index = ""
-    if (extension == "cram") {
-        create_index = "touch ${prefix}.crai"
-    } else if (extension == "bam") {
-        create_index = "touch ${prefix}.csi"
-    }
-
-    """
-    touch ${prefix}.${extension}
-    ${create_index}
-    touch ${prefix}.bowtie2.log
-    ${create_unmapped}
-    """
-
 }

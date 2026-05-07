@@ -10,8 +10,7 @@ process KMA_KMA {
         'community.wave.seqera.io/library/kma:1.5.0--eb093e0381fb59ea' }"
 
     input:
-    tuple val(meta), path(reads)
-    tuple val(meta2), path(index)
+    tuple val(meta), path(reads), path(index)
 
     output:
     tuple val(meta), path("*.res")    , optional: true, emit: res     // Results overview
