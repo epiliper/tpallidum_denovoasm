@@ -11,7 +11,8 @@ def get_mate_idx(filename: str):
 def find_pairs(reads: set[str], sample_suffix: str) -> dict[str, list[str]]:
     matemap: dict[str, list[str]] = defaultdict(list[str])
     for r in reads:
-        prefix = r.split(sample_suffix)[0]
+        prefix = os.path.basename(r)
+        prefix = prefix.split(sample_suffix)[0].strip(" _")
         assert(prefix)
 
         matemap[prefix].append(r)
@@ -36,7 +37,7 @@ def create_samplesheet():
     rrna_files = find_pairs(rrna_files, args.rprefix)
     gna_files = find_pairs(gna_files, args.gprefix)
 
-    sample_df = defaultdict(dict)
+    sample_df: dict[str, dict[str, str]] = defaultdict(dict)
 
     for sample, values in trna_files.items():
         r1 = values[0]
@@ -69,6 +70,29 @@ def create_samplesheet():
         sample_df[sample]["gna_fastq_2"] = r2
 
     fields = ["sample", "gna_fastq_1", "gna_fastq_2", "rrna_fastq_1", "rrna_fastq_2", "trna_fastq_1", "trna_fastq_2"]
+
+    # remove any samples missing a nucleic acid type
+    to_del = []
+    for k, v in sample_df.items():
+        if "gna_fastq_1" not in v:
+            to_del.append(k)
+
+        elif "rrna_fastq_1" not in v:
+            to_del.append(k)
+
+        elif "trna_fastq_1" not in v:
+            to_del.append(k)
+
+    if to_del:
+        print(f"found {len(to_del)} samples with missing fastqs for at least one nucleotide type. These will be removed from the final samplesheet.")
+
+    for k in to_del:
+        print(f"removing {k}")
+        del sample_df[k]
+
+    if not sample_df:
+        raise ValueError("All samples identified had at least one nucleic acid type FASTQ missing; the samplesheet is empty.")
+
 
     with open(args.output, "w") as outf:
         writer = DictWriter(outf, fields)
