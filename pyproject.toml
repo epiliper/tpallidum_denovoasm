@@ -1,0 +1,2 @@
+# putting this in so pyright doesn't scan my entire home directory
+[tool.pyright]

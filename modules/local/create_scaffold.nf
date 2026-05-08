@@ -13,7 +13,7 @@ process CREATE_SCAFFOLD {
     tuple val(meta), path("*_contig_stats.tsv"), emit: contig_stats
 
     script:
-    def prefix = "${task.ext.prefix}" ?: "${meta.id}"
+    def prefix = "${meta.id}"
 
     """
     tp_make_seq.R $prefix $bam $ref $min_contig_len

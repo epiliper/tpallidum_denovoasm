@@ -19,8 +19,10 @@ include { BBMAP_BBDUK as BBDUK_REMOVE } from '../modules/nf-core/bbmap/bbduk/mai
 include { SAMTOOLS_MERGE as SAMTOOLS_MERGE_COMBINE_GNA_TRNA } from '../modules/nf-core/samtools/merge/main'
 include { SAMTOOLS_FAIDX } from '../modules/nf-core/samtools/faidx/main'
 include { SAMTOOLS_FASTQ } from '../modules/nf-core/samtools/fastq/main'
+include { SAMTOOLS_FASTQ as SAMTOOLS_FASTQ_RNA } from '../modules/nf-core/samtools/fastq/main'
 
 include { PICARD_MARKDUPLICATES } from '../modules/nf-core/picard/markduplicates/main'
+include { PICARD_MARKDUPLICATES as PICARD_MARKDUPLICATES_RRNA } from '../modules/nf-core/picard/markduplicates/main'
 
 include { MEGAHIT } from '../modules/nf-core/megahit/main'
 
@@ -35,6 +37,7 @@ include { BWA_INDEX as BWA_INDEX_ROUND2 } from '../modules/nf-core/bwa/index/mai
 
 include { BWA_MEM as BWA_MEM_ALIGN_GNA} from '../modules/nf-core/bwa/mem/main'
 include { BWA_MEM as BWA_MEM_ALIGN_TRNA } from '../modules/nf-core/bwa/mem/main'
+include { BWA_MEM as BWA_MEM_ALIGN_RRNA } from '../modules/nf-core/bwa/mem/main'
 
 include { BWA_MEM as BWA_MEM_ALIGN_TO_DB_REF } from '../modules/nf-core/bwa/mem/main'
 include { BWA_MEM as BWA_MEM_ALIGN_ROUND1 } from '../modules/nf-core/bwa/mem/main'
@@ -42,8 +45,12 @@ include { BWA_MEM as BWA_MEM_ALIGN_ROUND2 } from '../modules/nf-core/bwa/mem/mai
 
 include { CREATE_SCAFFOLD } from '../modules/local/create_scaffold'
 
+include { MERGE_FASTQ as MERGE_ALL_NA } from '../modules/local/merge_fastq'
+
 include { IVAR_CONSENSUS as IVAR_CONSENSUS_ROUND1 } from '../modules/nf-core/ivar/consensus/main'
 include { IVAR_CONSENSUS as IVAR_CONSENSUS_ROUND2 } from '../modules/nf-core/ivar/consensus/main'
+
+include { MASK_TP_FASTA } from '../modules/local/mask_tp_fasta'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
@@ -100,17 +107,16 @@ workflow TPALLIDUM_DENOVOASM {
         BWA_MEM_ALIGN_GNA.out.bam.join(BWA_MEM_ALIGN_TRNA.out.bam))
 
     PICARD_MARKDUPLICATES(
-        SAMTOOLS_MERGE_COMBINE_GNA_TRNA.out.bam.combine(
-            ref_ch.join(SAMTOOLS_FAIDX.out.fai).map { _meta, fasta, fai -> [fasta, fai]})
+        SAMTOOLS_MERGE_COMBINE_GNA_TRNA.out.bam
         )
 
     // convert back to fastq for subsequent steps
     SAMTOOLS_FASTQ(
         PICARD_MARKDUPLICATES.out.bam, false)
-    SAMTOOLS_FASTQ.out.fastq.set { fastq_ch }
+    SAMTOOLS_FASTQ.out.fastq.set { fastq_raw_ch }
 
     BBDUK_REMOVE(
-        fastq_ch, bbduk_remove)
+        fastq_raw_ch, bbduk_remove)
     BBDUK_REMOVE.out.reads.set { fastq_ch }
 
     ///////////////////////////////////////////////
@@ -133,17 +139,31 @@ workflow TPALLIDUM_DENOVOASM {
 
     CREATE_SCAFFOLD(BWA_MEM_ALIGN_TO_DB_REF.out.bam.join(chosen_ref_ch), min_contig_len_bp)
 
+    ///////////////////////////////////////////////////////
+    // PART 3.5: ALIGN AND DEDUP rRNA, MERGE WITH OTHER NAS
+    ///////////////////////////////////////////////////////
+
+    BWA_MEM_ALIGN_RRNA(na_channels.rrna.join(BWA_INDEX_CHOSEN_REF.out.index), "rrna", true)
+    PICARD_MARKDUPLICATES_RRNA(BWA_MEM_ALIGN_RRNA.out.bam)
+    SAMTOOLS_FASTQ_RNA(PICARD_MARKDUPLICATES_RRNA.out.bam, false)
+
+    MERGE_ALL_NA(fastq_ch.join(SAMTOOLS_FASTQ_RNA.out.fastq))
+
+    MERGE_ALL_NA.out.fastq.set { all_na_fastq }
+
     //////////////////////////////
     // PART 4: ITERATIVE ALIGNMENT
     /////////////////////////////
 
     BWA_INDEX_ROUND1(CREATE_SCAFFOLD.out.scaffold)
-    BWA_MEM_ALIGN_ROUND1(fastq_ch.join(BWA_INDEX_ROUND1.out.index), "to_scaffold", "true")
+    BWA_MEM_ALIGN_ROUND1(all_na_fastq.join(BWA_INDEX_ROUND1.out.index), "to_scaffold", "true")
     IVAR_CONSENSUS_ROUND1(BWA_MEM_ALIGN_ROUND1.out.bam.join(CREATE_SCAFFOLD.out.scaffold), "intermediate", false)
 
     BWA_INDEX_ROUND2(IVAR_CONSENSUS_ROUND1.out.fasta)
-    BWA_MEM_ALIGN_ROUND2(fastq_ch.join(BWA_INDEX_ROUND2.out.index), "to_intermediate", true)
+    BWA_MEM_ALIGN_ROUND2(all_na_fastq.join(BWA_INDEX_ROUND2.out.index), "to_intermediate", true)
     IVAR_CONSENSUS_ROUND2(BWA_MEM_ALIGN_ROUND2.out.bam.join(IVAR_CONSENSUS_ROUND1.out.fasta), "final", false)
+
+    MASK_TP_FASTA(IVAR_CONSENSUS_ROUND2.out.fasta)
 
     /// END: CORE WORKFLOW EP ///
     ////////////////////////////

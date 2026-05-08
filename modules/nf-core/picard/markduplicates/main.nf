@@ -8,7 +8,7 @@ process PICARD_MARKDUPLICATES {
         : 'community.wave.seqera.io/library/picard:3.4.0--e9963040df0a9bf6'}"
 
     input:
-    tuple val(meta), path(reads), path(fasta), path(fai)
+    tuple val(meta), path(reads)
 
     output:
     tuple val(meta), path("*.bam"), emit: bam, optional: true
@@ -24,7 +24,6 @@ process PICARD_MARKDUPLICATES {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     def suffix = task.ext.suffix ?: "${reads.getExtension()}"
-    def reference = fasta ? "--REFERENCE_SEQUENCE ${fasta}" : ""
     def avail_mem = 3072
     if (!task.memory) {
         log.info('[Picard MarkDuplicates] Available memory not known - defaulting to 3GB. Specify process memory requirements to change this.')
@@ -53,7 +52,6 @@ process PICARD_MARKDUPLICATES {
         ${args} \\
         --INPUT ${prefix}_rg.bam \\
         --OUTPUT ${prefix}.${suffix} \\
-        ${reference} \\
         --METRICS_FILE ${prefix}.metrics.txt
 
     rm ${prefix}_rg.bam

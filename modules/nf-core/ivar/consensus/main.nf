@@ -30,12 +30,12 @@ process IVAR_CONSENSUS {
     samtools \\
         mpileup \\
         --reference $fasta \\
-        $args2 \\
+        $args \\
         $bam \\
         $mpileup \\
         | ivar \\
             consensus \\
-            $args \\
+            $args2 \\
             -p ${prefix}_${suffix}
 
     cat <<-END_VERSIONS > versions.yml
