@@ -153,7 +153,16 @@ workflow TPALLIDUM_DENOVOASM {
     PICARD_MARKDUPLICATES_RRNA(BWA_MEM_ALIGN_RRNA.out.bam)
     SAMTOOLS_FASTQ_RNA(PICARD_MARKDUPLICATES_RRNA.out.bam, false)
 
-    MERGE_ALL_NA(fastq_ch.join(SAMTOOLS_FASTQ_RNA.out.fastq))
+    // combine GA, TRNA, RRNA, and bbduk-filtered reads
+    MERGE_ALL_NA(
+        fastq_ch
+            .join(SAMTOOLS_FASTQ_RNA.out.fastq)
+            .join(BBDUK_REMOVE.out.contam)
+            .map { meta, fq1, fq2, fq3 -> meta.single_end
+                ? [ meta, [ se: [ fq1, fq2, fq3 ] ] ]
+                : [ meta, [ r1: [ fq1[0], fq2[0], fq3[0] ], r2: [ fq1[1], fq2[1], fq3[1] ] ] ] }
+            .dump(tag: "merge all input")
+    )
 
     MERGE_ALL_NA.out.fastq.set { all_na_fastq }
 
