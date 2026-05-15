@@ -14,6 +14,7 @@ process BWA_MEM {
 
     output:
     tuple val(meta), path("*.bam")  , emit: bam,    optional: true
+    tuple val(meta), path("*.bai")  , emit: bai,    optional: true
     tuple val(meta), path("*.cram") , emit: cram,   optional: true
     tuple val(meta), path("*.csi")  , emit: csi,    optional: true
     tuple val(meta), path("*.crai") , emit: crai,   optional: true
@@ -33,6 +34,8 @@ process BWA_MEM {
                     sort_bam && args2.contains("-O cram")? "cram":
                     !sort_bam && args2.contains("-C")    ? "cram":
                     "bam"
+
+    def index_command = sort_bam ? "samtools index ${prefix}_${suffix}.${extension}" : ""
     """
     INDEX=`find -L ./ -name "*.amb" | sed 's/\\.amb\$//'`
 
@@ -42,5 +45,7 @@ process BWA_MEM {
         \$INDEX \\
         $reads \\
         | samtools $samtools_command $args2 --threads $task.cpus -o ${prefix}_${suffix}.${extension} -
+
+    ${index_command}
     """
 }

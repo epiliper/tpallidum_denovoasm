@@ -102,9 +102,15 @@ workflow TPALLIDUM_DENOVOASM {
     BWA_MEM_ALIGN_GNA(na_channels.gna.combine(db_idx_bwa), "GNA", true)
     BWA_MEM_ALIGN_TRNA(na_channels.trna.combine(db_idx_bwa), "TRNA", true)
 
+    BWA_MEM_ALIGN_GNA.out.bam
+        .join(BWA_MEM_ALIGN_TRNA.out.bam)
+        .join(BWA_MEM_ALIGN_GNA.out.bai)
+        .join(BWA_MEM_ALIGN_TRNA.out.bai)
+        .map { meta, bam1, bam2, bai1, bai2 -> [ meta, [ bam1, bam2 ], [ bai1, bai2 ]]}
+        .set { ch_merge_in }
+
     // join by meta here
-    SAMTOOLS_MERGE_COMBINE_GNA_TRNA(
-        BWA_MEM_ALIGN_GNA.out.bam.join(BWA_MEM_ALIGN_TRNA.out.bam))
+    SAMTOOLS_MERGE_COMBINE_GNA_TRNA(ch_merge_in)
 
     PICARD_MARKDUPLICATES(
         SAMTOOLS_MERGE_COMBINE_GNA_TRNA.out.bam
