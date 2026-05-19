@@ -51,6 +51,8 @@ include { IVAR_CONSENSUS as IVAR_CONSENSUS_ROUND1 } from '../modules/nf-core/iva
 include { IVAR_CONSENSUS as IVAR_CONSENSUS_ROUND2 } from '../modules/nf-core/ivar/consensus/main'
 
 include { MASK_TP_FASTA } from '../modules/local/mask_tp_fasta'
+
+include { POLISH } from '../modules/local/polish.nf'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
@@ -179,6 +181,8 @@ workflow TPALLIDUM_DENOVOASM {
     IVAR_CONSENSUS_ROUND2(BWA_MEM_ALIGN_ROUND2.out.bam.join(IVAR_CONSENSUS_ROUND1.out.fasta), "final", false)
 
     MASK_TP_FASTA(IVAR_CONSENSUS_ROUND2.out.fasta)
+
+    POLISH(MASK_TP_FASTA.out.fasta.join(chosen_ref_ch))
 
     /// END: CORE WORKFLOW EP ///
     ////////////////////////////
