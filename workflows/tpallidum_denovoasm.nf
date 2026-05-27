@@ -180,9 +180,10 @@ workflow TPALLIDUM_DENOVOASM {
     BWA_MEM_ALIGN_ROUND2(all_na_fastq.join(BWA_INDEX_ROUND2.out.index), "to_intermediate", true)
     IVAR_CONSENSUS_ROUND2(BWA_MEM_ALIGN_ROUND2.out.bam.join(IVAR_CONSENSUS_ROUND1.out.fasta), "final", false)
 
-    MASK_TP_FASTA(IVAR_CONSENSUS_ROUND2.out.fasta)
+    POLISH(IVAR_CONSENSUS_ROUND2.out.fasta.join(chosen_ref_ch))
 
-    POLISH(MASK_TP_FASTA.out.fasta.join(chosen_ref_ch))
+    MASK_TP_FASTA(POLISH.out.polished)
+
 
     /// END: CORE WORKFLOW EP ///
     ////////////////////////////

@@ -24,7 +24,7 @@ def polish(query: str, ref: str, prefix:str, output_fasta: str):
     assert(seq), f"FASTA file {query} doesn't seem to have sequence after leading/trailing N removal, invalid format?"
 
     mafft_in = "mafft_in"
-    mafft_out = "aligned.fa"
+    mafft_out = prefix.replace(">", "") + "_aligned.fa"
 
     # create alignment input
     with open(mafft_in, "w") as alnin:

@@ -7,7 +7,8 @@ process POLISH {
     tuple val(meta), path(denovo_fasta), path(chosen_ref)
 
     output:
-    tuple val(meta), path("*polished.fa")
+    tuple val(meta), path("*polished.fa"), emit: polished
+    tuple val(meta), path("*aligned.fa"), emit: alignment
 
     script:
     def prefix = task.ext.prefix ?: meta.id
