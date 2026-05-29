@@ -15,6 +15,7 @@ process BOWTIE2_ALIGN {
 
     output:
     tuple val(meta), path("*.bam")      , emit: bam
+    tuple val(meta), path("*.bai")       , emit: bai
     tuple val(meta), path("*fastq.gz")  , emit: fastq   , optional:true
     tuple val("${task.process}"), val('bowtie2'), eval("bowtie2 --version 2>&1 | sed -n 's/.*bowtie2-align-s version //p'"), emit: versions_bowtie2, topic: versions
     tuple val("${task.process}"), val('samtools'), eval("samtools version | sed '1!d;s/.* //'"), emit: versions_samtools, topic: versions
@@ -41,6 +42,7 @@ process BOWTIE2_ALIGN {
 
     def bowtie2_out = sort_bam ? "temp.bam" : "${prefix}_${suffix}.bam"
     def sort_cmd = sort_bam ? "samtools sort -@ ${task.cpus} -o ${prefix}_${suffix}.bam ${bowtie2_out} && rm ${bowtie2_out}" : ""
+    def index_cmd = sort_bam ? "samtools index -@ ${task.cpus} ${prefix}_${suffix}.bam" : ""
 
     """
     INDEX=`find -L ./ -name "*.rev.1.bt2" | sed "s/\\.rev.1.bt2\$//"`
@@ -65,5 +67,6 @@ process BOWTIE2_ALIGN {
     fi
 
     ${sort_cmd}
+    ${index_cmd}
     """
 }

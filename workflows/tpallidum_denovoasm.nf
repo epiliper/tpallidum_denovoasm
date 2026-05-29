@@ -21,27 +21,43 @@ include { SAMTOOLS_FAIDX } from '../modules/nf-core/samtools/faidx/main'
 include { SAMTOOLS_FASTQ } from '../modules/nf-core/samtools/fastq/main'
 include { SAMTOOLS_FASTQ as SAMTOOLS_FASTQ_RNA } from '../modules/nf-core/samtools/fastq/main'
 
+include { SEQTK_SEQ } from '../modules/nf-core/seqtk/seq/main'
+
 include { PICARD_MARKDUPLICATES } from '../modules/nf-core/picard/markduplicates/main'
 include { PICARD_MARKDUPLICATES as PICARD_MARKDUPLICATES_RRNA } from '../modules/nf-core/picard/markduplicates/main'
 
 include { MEGAHIT } from '../modules/nf-core/megahit/main'
+include { DENOVO_ASSEMBLE } from '../modules/local/unicycler'
 
 include { KMA_KMA } from '../modules/nf-core/kma/kma/main'
 include { KMA_INDEX } from '../modules/nf-core/kma/index/main'
 include { SELECT_BEST_KMA_REF } from '../modules/local/select_best_kma_ref'
 
-include { BWA_INDEX as BWA_INDEX_DB_REF } from '../modules/nf-core/bwa/index/main'
-include { BWA_INDEX as BWA_INDEX_CHOSEN_REF } from '../modules/nf-core/bwa/index/main'
-include { BWA_INDEX as BWA_INDEX_ROUND1 } from '../modules/nf-core/bwa/index/main'
-include { BWA_INDEX as BWA_INDEX_ROUND2 } from '../modules/nf-core/bwa/index/main'
+// include { BWA_INDEX as BWA_INDEX_DB_REF } from '../modules/nf-core/bwa/index/main'
+// include { BWA_INDEX as BWA_INDEX_CHOSEN_REF } from '../modules/nf-core/bwa/index/main'
+// include { BWA_INDEX as BWA_INDEX_ROUND1 } from '../modules/nf-core/bwa/index/main'
+// include { BWA_INDEX as BWA_INDEX_ROUND2 } from '../modules/nf-core/bwa/index/main'
 
-include { BWA_MEM as BWA_MEM_ALIGN_GNA} from '../modules/nf-core/bwa/mem/main'
-include { BWA_MEM as BWA_MEM_ALIGN_TRNA } from '../modules/nf-core/bwa/mem/main'
-include { BWA_MEM as BWA_MEM_ALIGN_RRNA } from '../modules/nf-core/bwa/mem/main'
+// include { BWA_MEM as BWA_MEM_ALIGN_GNA} from '../modules/nf-core/bwa/mem/main'
+// include { BWA_MEM as BWA_MEM_ALIGN_TRNA } from '../modules/nf-core/bwa/mem/main'
+// include { BWA_MEM as BWA_MEM_ALIGN_RRNA } from '../modules/nf-core/bwa/mem/main'
 
-include { BWA_MEM as BWA_MEM_ALIGN_TO_DB_REF } from '../modules/nf-core/bwa/mem/main'
-include { BWA_MEM as BWA_MEM_ALIGN_ROUND1 } from '../modules/nf-core/bwa/mem/main'
-include { BWA_MEM as BWA_MEM_ALIGN_ROUND2 } from '../modules/nf-core/bwa/mem/main'
+// include { BWA_MEM as BWA_MEM_ALIGN_TO_DB_REF } from '../modules/nf-core/bwa/mem/main'
+// include { BWA_MEM as BWA_MEM_ALIGN_ROUND1 } from '../modules/nf-core/bwa/mem/main'
+// include { BWA_MEM as BWA_MEM_ALIGN_ROUND2 } from '../modules/nf-core/bwa/mem/main'
+
+include { BOWTIE2_BUILD as BOWTIE2_INDEX_DB_REF } from '../modules/nf-core/bowtie2/build/main'
+include { BOWTIE2_BUILD as BOWTIE2_INDEX_CHOSEN_REF } from '../modules/nf-core/bowtie2/build/main'
+include { BOWTIE2_BUILD as BOWTIE2_INDEX_ROUND1 } from '../modules/nf-core/bowtie2/build/main'
+include { BOWTIE2_BUILD as BOWTIE2_INDEX_ROUND2 } from '../modules/nf-core/bowtie2/build/main'
+
+include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_GNA} from '../modules/nf-core/bowtie2/align/main'
+include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_TRNA } from '../modules/nf-core/bowtie2/align/main'
+include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_RRNA } from '../modules/nf-core/bowtie2/align/main'
+
+include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_TO_DB_REF } from '../modules/nf-core/bowtie2/align/main'
+include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_ROUND1 } from '../modules/nf-core/bowtie2/align/main'
+include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_ROUND2 } from '../modules/nf-core/bowtie2/align/main'
 
 include { CREATE_SCAFFOLD } from '../modules/local/create_scaffold'
 
@@ -97,17 +113,17 @@ workflow TPALLIDUM_DENOVOASM {
     KMA_INDEX(ref_ch)
     KMA_INDEX.out.index.map { _meta, index -> index }.set { db_idx_kma }
 
-    BWA_INDEX_DB_REF(ref_ch)
-    BWA_INDEX_DB_REF.out.index.map { _meta, index -> index }.set { db_idx_bwa }
+    BOWTIE2_INDEX_DB_REF(ref_ch)
+    BOWTIE2_INDEX_DB_REF.out.index.map { _meta, index -> index }.set { db_idx_bwa }
 
     // don't align rrna
-    BWA_MEM_ALIGN_GNA(na_channels.gna.combine(db_idx_bwa), "GNA", true)
-    BWA_MEM_ALIGN_TRNA(na_channels.trna.combine(db_idx_bwa), "TRNA", true)
+    BOWTIE2_ALIGN_GNA(na_channels.gna.combine(db_idx_bwa), "GNA", false, true)
+    BOWTIE2_ALIGN_TRNA(na_channels.trna.combine(db_idx_bwa), "TRNA", false, true)
 
-    BWA_MEM_ALIGN_GNA.out.bam
-        .join(BWA_MEM_ALIGN_TRNA.out.bam)
-        .join(BWA_MEM_ALIGN_GNA.out.bai)
-        .join(BWA_MEM_ALIGN_TRNA.out.bai)
+    BOWTIE2_ALIGN_GNA.out.bam
+        .join(BOWTIE2_ALIGN_TRNA.out.bam)
+        .join(BOWTIE2_ALIGN_GNA.out.bai)
+        .join(BOWTIE2_ALIGN_TRNA.out.bai)
         .map { meta, bam1, bam2, bai1, bai2 -> [ meta, [ bam1, bam2 ], [ bai1, bai2 ]]}
         .set { ch_merge_in }
 
@@ -131,8 +147,11 @@ workflow TPALLIDUM_DENOVOASM {
     // PART 2: DENOVO ASSEMBLY, REFERENCE SELECTION
     ///////////////////////////////////////////////
 
-    MEGAHIT(fastq_ch)
-    MEGAHIT.out.contigs.set { contigs_ch }
+    // MEGAHIT(fastq_ch)
+    DENOVO_ASSEMBLE(fastq_ch)
+
+    // MEGAHIT.out.contigs.set { contigs_ch }
+    DENOVO_ASSEMBLE.out.fasta.set { contigs_ch }
 
     KMA_KMA(contigs_ch.combine(db_idx_kma))
 
@@ -142,17 +161,18 @@ workflow TPALLIDUM_DENOVOASM {
     // PART 3: GENERATE INITIAL CONSENSUS
     ////////////////////////////////////
 
-    BWA_INDEX_CHOSEN_REF(chosen_ref_ch)
-    BWA_MEM_ALIGN_TO_DB_REF(contigs_ch.join(BWA_INDEX_CHOSEN_REF.out.index), "contig", true)
+    BOWTIE2_INDEX_CHOSEN_REF(chosen_ref_ch)
+    SEQTK_SEQ(contigs_ch)
+    BOWTIE2_ALIGN_TO_DB_REF(SEQTK_SEQ.out.fastx.join(BOWTIE2_INDEX_CHOSEN_REF.out.index), "contig", true, false)
 
-    CREATE_SCAFFOLD(BWA_MEM_ALIGN_TO_DB_REF.out.bam.join(chosen_ref_ch), min_contig_len_bp)
+    CREATE_SCAFFOLD(BOWTIE2_ALIGN_TO_DB_REF.out.bam.join(chosen_ref_ch), min_contig_len_bp)
 
     ///////////////////////////////////////////////////////
     // PART 3.5: ALIGN AND DEDUP rRNA, MERGE WITH OTHER NAS
     ///////////////////////////////////////////////////////
 
-    BWA_MEM_ALIGN_RRNA(na_channels.rrna.join(BWA_INDEX_CHOSEN_REF.out.index), "rrna", true)
-    PICARD_MARKDUPLICATES_RRNA(BWA_MEM_ALIGN_RRNA.out.bam)
+    BOWTIE2_ALIGN_RRNA(na_channels.rrna.join(BOWTIE2_INDEX_CHOSEN_REF.out.index), "rrna", false, true)
+    PICARD_MARKDUPLICATES_RRNA(BOWTIE2_ALIGN_RRNA.out.bam)
     SAMTOOLS_FASTQ_RNA(PICARD_MARKDUPLICATES_RRNA.out.bam, false)
 
     // combine GA, TRNA, RRNA, and bbduk-filtered reads
@@ -172,13 +192,13 @@ workflow TPALLIDUM_DENOVOASM {
     // PART 4: ITERATIVE ALIGNMENT
     /////////////////////////////
 
-    BWA_INDEX_ROUND1(CREATE_SCAFFOLD.out.scaffold)
-    BWA_MEM_ALIGN_ROUND1(all_na_fastq.join(BWA_INDEX_ROUND1.out.index), "to_scaffold", "true")
-    IVAR_CONSENSUS_ROUND1(BWA_MEM_ALIGN_ROUND1.out.bam.join(CREATE_SCAFFOLD.out.scaffold), "intermediate", false)
+    BOWTIE2_INDEX_ROUND1(CREATE_SCAFFOLD.out.scaffold)
+    BOWTIE2_ALIGN_ROUND1(all_na_fastq.join(BOWTIE2_INDEX_ROUND1.out.index), "to_scaffold", false, true)
+    IVAR_CONSENSUS_ROUND1(BOWTIE2_ALIGN_ROUND1.out.bam.join(CREATE_SCAFFOLD.out.scaffold), "intermediate", false)
 
-    BWA_INDEX_ROUND2(IVAR_CONSENSUS_ROUND1.out.fasta)
-    BWA_MEM_ALIGN_ROUND2(all_na_fastq.join(BWA_INDEX_ROUND2.out.index), "to_intermediate", true)
-    IVAR_CONSENSUS_ROUND2(BWA_MEM_ALIGN_ROUND2.out.bam.join(IVAR_CONSENSUS_ROUND1.out.fasta), "final", false)
+    BOWTIE2_INDEX_ROUND2(IVAR_CONSENSUS_ROUND1.out.fasta)
+    BOWTIE2_ALIGN_ROUND2(all_na_fastq.join(BOWTIE2_INDEX_ROUND2.out.index), "to_intermediate", false, true)
+    IVAR_CONSENSUS_ROUND2(BOWTIE2_ALIGN_ROUND2.out.bam.join(IVAR_CONSENSUS_ROUND1.out.fasta), "final", false)
 
     POLISH(IVAR_CONSENSUS_ROUND2.out.fasta.join(chosen_ref_ch))
 
