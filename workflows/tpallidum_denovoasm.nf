@@ -10,10 +10,6 @@ include { paramsSummaryMultiqc } from '../subworkflows/nf-core/utils_nfcore_pipe
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_tpallidum_denovoasm_pipeline'
 
-// include { BOWTIE2_BUILD } from '../modules/nf-core/bowtie2/build/main'
-// include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_GNA } from '../modules/nf-core/bowtie2/align/main'
-// include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_TRNA } from '../modules/nf-core/bowtie2/align/main'
-
 include { BBMAP_BBDUK as BBDUK_REMOVE } from '../modules/nf-core/bbmap/bbduk/main'
 
 include { SAMTOOLS_MERGE as SAMTOOLS_MERGE_COMBINE_GNA_TRNA } from '../modules/nf-core/samtools/merge/main'
@@ -31,18 +27,8 @@ include { KMA_KMA } from '../modules/nf-core/kma/kma/main'
 include { KMA_INDEX } from '../modules/nf-core/kma/index/main'
 include { SELECT_BEST_KMA_REF } from '../modules/local/select_best_kma_ref'
 
-// include { BWA_INDEX as BWA_INDEX_DB_REF } from '../modules/nf-core/bwa/index/main'
-// include { BWA_INDEX as BWA_INDEX_CHOSEN_REF } from '../modules/nf-core/bwa/index/main'
-// include { BWA_INDEX as BWA_INDEX_ROUND1 } from '../modules/nf-core/bwa/index/main'
-// include { BWA_INDEX as BWA_INDEX_ROUND2 } from '../modules/nf-core/bwa/index/main'
-
-// include { BWA_MEM as BWA_MEM_ALIGN_GNA} from '../modules/nf-core/bwa/mem/main'
-// include { BWA_MEM as BWA_MEM_ALIGN_TRNA } from '../modules/nf-core/bwa/mem/main'
-// include { BWA_MEM as BWA_MEM_ALIGN_RRNA } from '../modules/nf-core/bwa/mem/main'
-
-// include { BWA_MEM as BWA_MEM_ALIGN_TO_DB_REF } from '../modules/nf-core/bwa/mem/main'
-// include { BWA_MEM as BWA_MEM_ALIGN_ROUND1 } from '../modules/nf-core/bwa/mem/main'
-// include { BWA_MEM as BWA_MEM_ALIGN_ROUND2 } from '../modules/nf-core/bwa/mem/main'
+include { BWA_INDEX as BWA_INDEX_CHOSEN_REF } from '../modules/nf-core/bwa/index/main'
+include { BWA_MEM as BWA_MEM_ALIGN_TO_CHOSEN_REF } from '../modules/nf-core/bwa/mem/main'
 
 include { BOWTIE2_BUILD as BOWTIE2_INDEX_DB_REF } from '../modules/nf-core/bowtie2/build/main'
 include { BOWTIE2_BUILD as BOWTIE2_INDEX_CHOSEN_REF } from '../modules/nf-core/bowtie2/build/main'
@@ -160,9 +146,10 @@ workflow TPALLIDUM_DENOVOASM {
     ////////////////////////////////////
 
     BOWTIE2_INDEX_CHOSEN_REF(chosen_ref_ch)
-    BOWTIE2_ALIGN_TO_DB_REF(contigs_ch.join(BOWTIE2_INDEX_CHOSEN_REF.out.index), "contig", true, false)
+    BWA_INDEX_CHOSEN_REF(chosen_ref_ch)
+    BWA_MEM_ALIGN_TO_CHOSEN_REF(contigs_ch.join(BWA_INDEX_CHOSEN_REF.out.index), "contig", true)
 
-    CREATE_SCAFFOLD(BOWTIE2_ALIGN_TO_DB_REF.out.bam.join(chosen_ref_ch), min_contig_len_bp)
+    CREATE_SCAFFOLD(BWA_MEM_ALIGN_TO_CHOSEN_REF.out.bam.join(chosen_ref_ch), min_contig_len_bp)
 
     ///////////////////////////////////////////////////////
     // PART 3.5: ALIGN AND DEDUP rRNA, MERGE WITH OTHER NAS
