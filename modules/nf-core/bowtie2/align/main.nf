@@ -32,13 +32,22 @@ process BOWTIE2_ALIGN {
 
     def unaligned = ""
     def reads_args = ""
-    if (meta.single_end) {
+
+    def extension_arg = "-q"
+
+    def file_type = reads instanceof List ? reads[0].getExtension() : reads.getExtension()
+
+    if (file_type == "fa" || meta.single_end) {
         unaligned = save_unaligned ? "--un-gz ${prefix}.unmapped.fastq.gz" : ""
         reads_args = "-U ${reads}"
     } else {
         unaligned = save_unaligned ? "--un-conc-gz ${prefix}.unmapped.fastq.gz" : ""
         reads_args = "-1 ${reads[0]} -2 ${reads[1]}"
     }
+
+    if (file_type == "fa") {
+        extension_arg = "-f"
+        }
 
     def bowtie2_out = sort_bam ? "temp.bam" : "${prefix}_${suffix}.bam"
     def sort_cmd = sort_bam ? "samtools sort -@ ${task.cpus} -o ${prefix}_${suffix}.bam ${bowtie2_out} && rm ${bowtie2_out}" : ""
@@ -51,6 +60,7 @@ process BOWTIE2_ALIGN {
 
     bowtie2 \\
         -x \$INDEX \\
+        $extension_arg \\
         $reads_args \\
         --threads $task.cpus \\
         $unaligned \\

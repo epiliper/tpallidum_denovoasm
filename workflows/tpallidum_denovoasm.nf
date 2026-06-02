@@ -21,8 +21,6 @@ include { SAMTOOLS_FAIDX } from '../modules/nf-core/samtools/faidx/main'
 include { SAMTOOLS_FASTQ } from '../modules/nf-core/samtools/fastq/main'
 include { SAMTOOLS_FASTQ as SAMTOOLS_FASTQ_RNA } from '../modules/nf-core/samtools/fastq/main'
 
-include { SEQTK_SEQ } from '../modules/nf-core/seqtk/seq/main'
-
 include { PICARD_MARKDUPLICATES } from '../modules/nf-core/picard/markduplicates/main'
 include { PICARD_MARKDUPLICATES as PICARD_MARKDUPLICATES_RRNA } from '../modules/nf-core/picard/markduplicates/main'
 
@@ -162,8 +160,7 @@ workflow TPALLIDUM_DENOVOASM {
     ////////////////////////////////////
 
     BOWTIE2_INDEX_CHOSEN_REF(chosen_ref_ch)
-    SEQTK_SEQ(contigs_ch)
-    BOWTIE2_ALIGN_TO_DB_REF(SEQTK_SEQ.out.fastx.join(BOWTIE2_INDEX_CHOSEN_REF.out.index), "contig", true, false)
+    BOWTIE2_ALIGN_TO_DB_REF(contigs_ch.join(BOWTIE2_INDEX_CHOSEN_REF.out.index), "contig", true, false)
 
     CREATE_SCAFFOLD(BOWTIE2_ALIGN_TO_DB_REF.out.bam.join(chosen_ref_ch), min_contig_len_bp)
 
