@@ -27,13 +27,15 @@ include { KMA_KMA } from '../modules/nf-core/kma/kma/main'
 include { KMA_INDEX } from '../modules/nf-core/kma/index/main'
 include { SELECT_BEST_KMA_REF } from '../modules/local/select_best_kma_ref'
 
-include { BWA_INDEX as BWA_INDEX_CHOSEN_REF } from '../modules/nf-core/bwa/index/main'
-include { BWA_MEM as BWA_MEM_ALIGN_TO_CHOSEN_REF } from '../modules/nf-core/bwa/mem/main'
+include { MINIMAP2_IDX_ALN_ASM } from '../modules/local/minimap2'
 
 include { BOWTIE2_BUILD as BOWTIE2_INDEX_DB_REF } from '../modules/nf-core/bowtie2/build/main'
 include { BOWTIE2_BUILD as BOWTIE2_INDEX_CHOSEN_REF } from '../modules/nf-core/bowtie2/build/main'
+
 include { BOWTIE2_BUILD as BOWTIE2_INDEX_ROUND1 } from '../modules/nf-core/bowtie2/build/main'
 include { BOWTIE2_BUILD as BOWTIE2_INDEX_ROUND2 } from '../modules/nf-core/bowtie2/build/main'
+include { BOWTIE2_BUILD as BOWTIE2_INDEX_ROUND3 } from '../modules/nf-core/bowtie2/build/main'
+include { BOWTIE2_BUILD as BOWTIE2_INDEX_ROUND4 } from '../modules/nf-core/bowtie2/build/main'
 
 include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_GNA} from '../modules/nf-core/bowtie2/align/main'
 include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_TRNA } from '../modules/nf-core/bowtie2/align/main'
@@ -42,17 +44,21 @@ include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_RRNA } from '../modules/nf-core/bowtie2
 include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_TO_DB_REF } from '../modules/nf-core/bowtie2/align/main'
 include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_ROUND1 } from '../modules/nf-core/bowtie2/align/main'
 include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_ROUND2 } from '../modules/nf-core/bowtie2/align/main'
+include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_ROUND3 } from '../modules/nf-core/bowtie2/align/main'
+include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_ROUND4 } from '../modules/nf-core/bowtie2/align/main'
 
 include { CREATE_SCAFFOLD } from '../modules/local/create_scaffold'
+include { CREATE_SCAFFOLD  as CREATE_SCAFFOLD2 } from '../modules/local/create_scaffold'
 
 include { MERGE_FASTQ as MERGE_ALL_NA } from '../modules/local/merge_fastq'
 
-include { IVAR_CONSENSUS as IVAR_CONSENSUS_ROUND1 } from '../modules/nf-core/ivar/consensus/main'
-include { IVAR_CONSENSUS as IVAR_CONSENSUS_ROUND2 } from '../modules/nf-core/ivar/consensus/main'
+include { CONSENSUS as CONSENSUS_ROUND1 } from '../modules/local/consensus'
+include { CONSENSUS as CONSENSUS_ROUND2 } from '../modules/local/consensus'
+include { CONSENSUS as CONSENSUS_ROUND3 } from '../modules/local/consensus'
+
+include { PILON } from '../modules/nf-core/pilon/main'
 
 include { MASK_TP_FASTA } from '../modules/local/mask_tp_fasta'
-
-include { POLISH } from '../modules/local/polish.nf'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
@@ -146,10 +152,16 @@ workflow TPALLIDUM_DENOVOASM {
     ////////////////////////////////////
 
     BOWTIE2_INDEX_CHOSEN_REF(chosen_ref_ch)
-    BWA_INDEX_CHOSEN_REF(chosen_ref_ch)
-    BWA_MEM_ALIGN_TO_CHOSEN_REF(contigs_ch.join(BWA_INDEX_CHOSEN_REF.out.index), "contig", true)
 
-    CREATE_SCAFFOLD(BWA_MEM_ALIGN_TO_CHOSEN_REF.out.bam.join(chosen_ref_ch), min_contig_len_bp)
+    MINIMAP2_IDX_ALN_ASM(contigs_ch.join(chosen_ref_ch), "contig")
+
+    CREATE_SCAFFOLD(MINIMAP2_IDX_ALN_ASM.out.bam.join(chosen_ref_ch),
+    min_contig_len_bp)
+
+    // BWA_INDEX_CHOSEN_REF(chosen_ref_ch)
+    // BWA_MEM_ALIGN_TO_CHOSEN_REF(contigs_ch.join(BWA_INDEX_CHOSEN_REF.out.index), "contig", true)
+
+    // CREATE_SCAFFOLD(BWA_MEM_ALIGN_TO_CHOSEN_REF.out.bam.join(chosen_ref_ch), min_contig_len_bp)
 
     ///////////////////////////////////////////////////////
     // PART 3.5: ALIGN AND DEDUP rRNA, MERGE WITH OTHER NAS
@@ -172,21 +184,48 @@ workflow TPALLIDUM_DENOVOASM {
 
     MERGE_ALL_NA.out.fastq.set { all_na_fastq }
 
+
     //////////////////////////////
     // PART 4: ITERATIVE ALIGNMENT
     /////////////////////////////
-
     BOWTIE2_INDEX_ROUND1(CREATE_SCAFFOLD.out.scaffold)
     BOWTIE2_ALIGN_ROUND1(all_na_fastq.join(BOWTIE2_INDEX_ROUND1.out.index), "to_scaffold", false, true)
-    IVAR_CONSENSUS_ROUND1(BOWTIE2_ALIGN_ROUND1.out.bam.join(CREATE_SCAFFOLD.out.scaffold), "intermediate", false)
+    CONSENSUS_ROUND1(
+        BOWTIE2_ALIGN_ROUND1.out.bam
+        .join(BOWTIE2_ALIGN_ROUND1.out.bai)
+        .join(CREATE_SCAFFOLD.out.scaffold),
+        "intermediate"
+    )
 
-    BOWTIE2_INDEX_ROUND2(IVAR_CONSENSUS_ROUND1.out.fasta)
+    BOWTIE2_INDEX_ROUND2(CONSENSUS_ROUND1.out.fasta)
     BOWTIE2_ALIGN_ROUND2(all_na_fastq.join(BOWTIE2_INDEX_ROUND2.out.index), "to_intermediate", false, true)
-    IVAR_CONSENSUS_ROUND2(BOWTIE2_ALIGN_ROUND2.out.bam.join(IVAR_CONSENSUS_ROUND1.out.fasta), "final", false)
+    CONSENSUS_ROUND2(
+        BOWTIE2_ALIGN_ROUND2.out.bam
+        .join(BOWTIE2_ALIGN_ROUND2.out.bai)
+        .join(CONSENSUS_ROUND1.out.fasta),
+        "final"
+    )
 
-    POLISH(IVAR_CONSENSUS_ROUND2.out.fasta.join(chosen_ref_ch))
+    // BOWTIE2_INDEX_ROUND3(CONSENSUS_ROUND2.out.fasta)
+    // BOWTIE2_ALIGN_ROUND3(all_na_fastq.join(BOWTIE2_INDEX_ROUND3.out.index), "pre_pileon", false, true)
 
-    MASK_TP_FASTA(POLISH.out.polished)
+    // PILON(
+    //     CONSENSUS_ROUND2.out.fasta
+    //     .join(BOWTIE2_ALIGN_ROUND3.out.bam)
+    //     .join(BOWTIE2_ALIGN_ROUND3.out.bai),
+    //     "frags"
+    // )
+
+    // BOWTIE2_INDEX_ROUND4(PILON.out.improved_assembly)
+    // BOWTIE2_ALIGN_ROUND4(all_na_fastq.join(BOWTIE2_INDEX_ROUND4.out.index), "final", false, true)
+    // CONSENSUS_ROUND3(
+    //     BOWTIE2_ALIGN_ROUND4.out.bam
+    //     .join(BOWTIE2_ALIGN_ROUND4.out.bai)
+    //     .join(CONSENSUS_ROUND1.out.fasta),
+    //     "complete"
+    // )
+
+    MASK_TP_FASTA(CONSENSUS_ROUND2.out.fasta)
 
 
     /// END: CORE WORKFLOW EP ///

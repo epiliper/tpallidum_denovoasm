@@ -33,6 +33,8 @@ process BBMAP_BBDUK {
         $raw \\
         $trimmed \\
         $contam_out \\
+        rieb=f \\
+        k=45 hdist=2 \\
         threads=$task.cpus \\
         $args \\
         $contaminants_fa \\

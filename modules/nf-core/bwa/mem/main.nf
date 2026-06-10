@@ -44,6 +44,7 @@ process BWA_MEM {
         -t $task.cpus \\
         \$INDEX \\
         $reads \\
+        | samtools view -h -F 2052 \\
         | samtools $samtools_command $args2 --threads $task.cpus -o ${prefix}_${suffix}.${extension} -
 
     ${index_command}

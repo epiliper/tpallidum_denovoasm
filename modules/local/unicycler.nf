@@ -15,14 +15,14 @@ process DENOVO_ASSEMBLE {
 
     script:
 
-    def run = meta.single_end ? "unicycler -s $reads" : "unicycler -1 ${reads[0]} -2 ${reads[1]}"
+    def run = meta.single_end ? "-s $reads" : "-1 ${reads[0]} -2 ${reads[1]}"
+
     """
     #!/bin/bash
 
-    ${run} -o ./ -t ${task.cpus}
+    unicycler --max_kmer_frac 1.0 ${run} -o ./ -t ${task.cpus}
 
     cp assembly.gfa ${meta.id}_assembly.gfa
     cp assembly.fasta ${meta.id}_assembly.fasta
-
     """
 }

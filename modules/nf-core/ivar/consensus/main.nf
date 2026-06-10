@@ -8,8 +8,8 @@ process IVAR_CONSENSUS {
         'quay.io/biocontainers/ivar:1.4.4--h077b44d_0' }"
 
     input:
-    tuple val(meta), path(bam), path(fasta)
-    val suffix
+    tuple val(meta), path(bam)
+    path fasta
     val save_mpileup
 
     output:
@@ -30,13 +30,13 @@ process IVAR_CONSENSUS {
     samtools \\
         mpileup \\
         --reference $fasta \\
-        $args \\
+        $args2 \\
         $bam \\
         $mpileup \\
         | ivar \\
             consensus \\
-            $args2 \\
-            -p ${prefix}_${suffix}
+            $args \\
+            -p $prefix
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
@@ -48,8 +48,8 @@ process IVAR_CONSENSUS {
     def prefix = task.ext.prefix ?: "${meta.id}"
     def touch_mpileup = save_mpileup ? "touch ${prefix}.mpileup" : ''
     """
-    touch ${prefix}_${suffix}.fa
-    touch ${prefix}_${suffix}.qual.txt
+    touch ${prefix}.fa
+    touch ${prefix}.qual.txt
     $touch_mpileup
 
     cat <<-END_VERSIONS > versions.yml
