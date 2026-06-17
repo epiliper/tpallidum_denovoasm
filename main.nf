@@ -26,9 +26,8 @@ workflow {
         params.refs,
         params.bbduk_filter,
         params.min_contig_len_bp,
-        // params.multiqc_config,
-        // params.multiqc_logo,
-        // params.multiqc_methods_description,
+        params.min_consensus_depth,
+        params.n_end_glue_bases,
         params.outdir
     )
 

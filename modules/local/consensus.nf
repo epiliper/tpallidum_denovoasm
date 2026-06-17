@@ -6,6 +6,7 @@ process CONSENSUS {
         input:
         tuple val(meta), path(bam), path(bai), path(ref)
         val(suffix)
+        val(min_depth)
 
         output:
         tuple val(meta), path("*consensus.fasta"), emit: fasta
@@ -15,6 +16,6 @@ process CONSENSUS {
         def sampleprefix = "${prefix}_${suffix}"
 
         """
-        tp_make_consensus.R ${sampleprefix} ${bam} ${ref}
+        tp_make_consensus.R ${sampleprefix} ${bam} ${ref} ${min_depth}
         """
     }

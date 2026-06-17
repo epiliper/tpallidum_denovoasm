@@ -7,6 +7,7 @@ process CREATE_SCAFFOLD {
     input:
     tuple val(meta), path(bam), path(ref)
     val(min_contig_len)
+    val(n_glue_bases)
 
     output:
     tuple val(meta), path("*initial_consensus*.fasta"), emit: scaffold
@@ -16,6 +17,6 @@ process CREATE_SCAFFOLD {
     def prefix = "${meta.id}"
 
     """
-    tp_make_seq.R $prefix $bam $ref $min_contig_len
+    tp_make_seq.R $prefix $bam $ref $min_contig_len $n_glue_bases
     """
     }

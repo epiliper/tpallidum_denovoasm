@@ -20,6 +20,9 @@ include { SAMTOOLS_FASTQ as SAMTOOLS_FASTQ_RNA } from '../modules/nf-core/samtoo
 include { PICARD_MARKDUPLICATES } from '../modules/nf-core/picard/markduplicates/main'
 include { PICARD_MARKDUPLICATES as PICARD_MARKDUPLICATES_RRNA } from '../modules/nf-core/picard/markduplicates/main'
 
+include { PICARD_MARKDUPLICATES as PICARD_MARKDUPLICATES_ROUND1 } from '../modules/nf-core/picard/markduplicates/main'
+include { PICARD_MARKDUPLICATES as PICARD_MARKDUPLICATES_ROUND2 } from '../modules/nf-core/picard/markduplicates/main'
+
 include { MEGAHIT } from '../modules/nf-core/megahit/main'
 include { DENOVO_ASSEMBLE } from '../modules/local/unicycler'
 
@@ -37,7 +40,7 @@ include { BOWTIE2_BUILD as BOWTIE2_INDEX_ROUND2 } from '../modules/nf-core/bowti
 include { BOWTIE2_BUILD as BOWTIE2_INDEX_ROUND3 } from '../modules/nf-core/bowtie2/build/main'
 include { BOWTIE2_BUILD as BOWTIE2_INDEX_ROUND4 } from '../modules/nf-core/bowtie2/build/main'
 
-include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_GNA} from '../modules/nf-core/bowtie2/align/main'
+include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_GNA } from '../modules/nf-core/bowtie2/align/main'
 include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_TRNA } from '../modules/nf-core/bowtie2/align/main'
 include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_RRNA } from '../modules/nf-core/bowtie2/align/main'
 
@@ -48,13 +51,15 @@ include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_ROUND3 } from '../modules/nf-core/bowti
 include { BOWTIE2_ALIGN as BOWTIE2_ALIGN_ROUND4 } from '../modules/nf-core/bowtie2/align/main'
 
 include { CREATE_SCAFFOLD } from '../modules/local/create_scaffold'
-include { CREATE_SCAFFOLD  as CREATE_SCAFFOLD2 } from '../modules/local/create_scaffold'
+include { CREATE_SCAFFOLD as CREATE_SCAFFOLD2 } from '../modules/local/create_scaffold'
 
 include { MERGE_FASTQ as MERGE_ALL_NA } from '../modules/local/merge_fastq'
 
 include { CONSENSUS as CONSENSUS_ROUND1 } from '../modules/local/consensus'
 include { CONSENSUS as CONSENSUS_ROUND2 } from '../modules/local/consensus'
 include { CONSENSUS as CONSENSUS_ROUND3 } from '../modules/local/consensus'
+
+include { TRIM_END_GLUE } from '../modules/local/trim_end_glue.nf'
 
 include { PILON } from '../modules/nf-core/pilon/main'
 
@@ -71,9 +76,8 @@ workflow TPALLIDUM_DENOVOASM {
     ref_fasta
     bbduk_remove
     min_contig_len_bp
-    // multiqc_config
-    // multiqc_logo
-    // multiqc_methods_description
+    min_consensus_depth
+    n_end_glue_bases
     outdir
 
     main:
@@ -114,7 +118,7 @@ workflow TPALLIDUM_DENOVOASM {
         .join(BOWTIE2_ALIGN_TRNA.out.bam)
         .join(BOWTIE2_ALIGN_GNA.out.bai)
         .join(BOWTIE2_ALIGN_TRNA.out.bai)
-        .map { meta, bam1, bam2, bai1, bai2 -> [ meta, [ bam1, bam2 ], [ bai1, bai2 ]]}
+        .map { meta, bam1, bam2, bai1, bai2 -> [meta, [bam1, bam2], [bai1, bai2]] }
         .set { ch_merge_in }
 
     // join by meta here
@@ -122,15 +126,19 @@ workflow TPALLIDUM_DENOVOASM {
 
     PICARD_MARKDUPLICATES(
         SAMTOOLS_MERGE_COMBINE_GNA_TRNA.out.bam
-        )
+    )
 
     // convert back to fastq for subsequent steps
     SAMTOOLS_FASTQ(
-        PICARD_MARKDUPLICATES.out.bam, false)
+        PICARD_MARKDUPLICATES.out.bam,
+        false,
+    )
     SAMTOOLS_FASTQ.out.fastq.set { fastq_raw_ch }
 
     BBDUK_REMOVE(
-        fastq_raw_ch, bbduk_remove)
+        fastq_raw_ch,
+        bbduk_remove,
+    )
     BBDUK_REMOVE.out.reads.set { fastq_ch }
 
     ///////////////////////////////////////////////
@@ -155,13 +163,11 @@ workflow TPALLIDUM_DENOVOASM {
 
     MINIMAP2_IDX_ALN_ASM(contigs_ch.join(chosen_ref_ch), "contig")
 
-    CREATE_SCAFFOLD(MINIMAP2_IDX_ALN_ASM.out.bam.join(chosen_ref_ch),
-    min_contig_len_bp)
-
-    // BWA_INDEX_CHOSEN_REF(chosen_ref_ch)
-    // BWA_MEM_ALIGN_TO_CHOSEN_REF(contigs_ch.join(BWA_INDEX_CHOSEN_REF.out.index), "contig", true)
-
-    // CREATE_SCAFFOLD(BWA_MEM_ALIGN_TO_CHOSEN_REF.out.bam.join(chosen_ref_ch), min_contig_len_bp)
+    CREATE_SCAFFOLD(
+        MINIMAP2_IDX_ALN_ASM.out.bam.join(chosen_ref_ch),
+        min_contig_len_bp,
+        n_end_glue_bases,
+    )
 
     ///////////////////////////////////////////////////////
     // PART 3.5: ALIGN AND DEDUP rRNA, MERGE WITH OTHER NAS
@@ -176,9 +182,6 @@ workflow TPALLIDUM_DENOVOASM {
         fastq_ch
             .join(SAMTOOLS_FASTQ_RNA.out.fastq)
             .join(BBDUK_REMOVE.out.contam)
-            .map { meta, fq1, fq2, fq3 -> meta.single_end
-                ? [ meta, [ se: [ fq1, fq2, fq3 ] ] ]
-                : [ meta, [ r1: [ fq1[0], fq2[0], fq3[0] ], r2: [ fq1[1], fq2[1], fq3[1] ] ] ] }
             .dump(tag: "merge all input")
     )
 
@@ -188,42 +191,30 @@ workflow TPALLIDUM_DENOVOASM {
     //////////////////////////////
     // PART 4: ITERATIVE ALIGNMENT
     /////////////////////////////
+
+    // round 1
     BOWTIE2_INDEX_ROUND1(CREATE_SCAFFOLD.out.scaffold)
     BOWTIE2_ALIGN_ROUND1(all_na_fastq.join(BOWTIE2_INDEX_ROUND1.out.index), "to_scaffold", false, true)
+    PICARD_MARKDUPLICATES_ROUND1(BOWTIE2_ALIGN_ROUND1.out.bam)
+
     CONSENSUS_ROUND1(
-        BOWTIE2_ALIGN_ROUND1.out.bam
-        .join(BOWTIE2_ALIGN_ROUND1.out.bai)
-        .join(CREATE_SCAFFOLD.out.scaffold),
-        "intermediate"
+        PICARD_MARKDUPLICATES_ROUND1.out.bam.join(PICARD_MARKDUPLICATES_ROUND1.out.bai).join(CREATE_SCAFFOLD.out.scaffold),
+        "intermediate",
+        min_consensus_depth,
     )
 
-    BOWTIE2_INDEX_ROUND2(CONSENSUS_ROUND1.out.fasta)
+    TRIM_END_GLUE(CONSENSUS_ROUND1.out.fasta, n_end_glue_bases)
+
+    // round 2
+    BOWTIE2_INDEX_ROUND2(TRIM_END_GLUE.out.fasta)
     BOWTIE2_ALIGN_ROUND2(all_na_fastq.join(BOWTIE2_INDEX_ROUND2.out.index), "to_intermediate", false, true)
+    PICARD_MARKDUPLICATES_ROUND2(BOWTIE2_ALIGN_ROUND2.out.bam)
+
     CONSENSUS_ROUND2(
-        BOWTIE2_ALIGN_ROUND2.out.bam
-        .join(BOWTIE2_ALIGN_ROUND2.out.bai)
-        .join(CONSENSUS_ROUND1.out.fasta),
-        "final"
+        PICARD_MARKDUPLICATES_ROUND2.out.bam.join(PICARD_MARKDUPLICATES_ROUND2.out.bai).join(TRIM_END_GLUE.out.fasta),
+        "final",
+        min_consensus_depth,
     )
-
-    // BOWTIE2_INDEX_ROUND3(CONSENSUS_ROUND2.out.fasta)
-    // BOWTIE2_ALIGN_ROUND3(all_na_fastq.join(BOWTIE2_INDEX_ROUND3.out.index), "pre_pileon", false, true)
-
-    // PILON(
-    //     CONSENSUS_ROUND2.out.fasta
-    //     .join(BOWTIE2_ALIGN_ROUND3.out.bam)
-    //     .join(BOWTIE2_ALIGN_ROUND3.out.bai),
-    //     "frags"
-    // )
-
-    // BOWTIE2_INDEX_ROUND4(PILON.out.improved_assembly)
-    // BOWTIE2_ALIGN_ROUND4(all_na_fastq.join(BOWTIE2_INDEX_ROUND4.out.index), "final", false, true)
-    // CONSENSUS_ROUND3(
-    //     BOWTIE2_ALIGN_ROUND4.out.bam
-    //     .join(BOWTIE2_ALIGN_ROUND4.out.bai)
-    //     .join(CONSENSUS_ROUND1.out.fasta),
-    //     "complete"
-    // )
 
     MASK_TP_FASTA(CONSENSUS_ROUND2.out.fasta)
 
@@ -260,34 +251,6 @@ workflow TPALLIDUM_DENOVOASM {
             newLine: true,
         )
 
-    // //
-    // // MODULE: MultiQC
-    // //
-    // ch_multiqc_files = ch_multiqc_files.mix(ch_collated_versions)
-    // def ch_summary_params = paramsSummaryMap(workflow, parameters_schema: "nextflow_schema.json")
-    // def ch_workflow_summary = channel.value(paramsSummaryMultiqc(ch_summary_params))
-    // ch_multiqc_files = ch_multiqc_files.mix(ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
-    // def ch_multiqc_custom_methods_description = multiqc_methods_description
-    //     ? file(multiqc_methods_description, checkIfExists: true)
-    //     : file("${projectDir}/assets/methods_description_template.yml", checkIfExists: true)
-    // def ch_methods_description = channel.value(methodsDescriptionText(ch_multiqc_custom_methods_description))
-    // ch_multiqc_files = ch_multiqc_files.mix(ch_methods_description.collectFile(name: 'methods_description_mqc.yaml', sort: true))
-    // MULTIQC(
-    //     ch_multiqc_files.flatten().collect().map { files ->
-    //         [
-    //             [id: 'tpallidum_denovoasm'],
-    //             files,
-    //             multiqc_config
-    //                 ? file(multiqc_config, checkIfExists: true)
-    //                 : file("${projectDir}/assets/multiqc_config.yml", checkIfExists: true),
-    //             multiqc_logo ? file(multiqc_logo, checkIfExists: true) : [],
-    //             [],
-    //             [],
-    //         ]
-    //     }
-    // )
-
     emit:
-    // multiqc_report = MULTIQC.out.report.map { _meta, report -> [report] }.toList() // channel: /path/to/multiqc_report.html
     versions = ch_versions // channel: [ path(versions.yml) ]
 }

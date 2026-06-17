@@ -1,8 +1,6 @@
 process DENOVO_ASSEMBLE {
-    // container "quay.io/biocontainers/unicycler:0.4.4--py37h13b99d1_3"
-    container "quay.io/biocontainers/unicycler:0.5.1--py312hdcc493e_5 "
+    container "quay.io/epil02/unicycler:0.5.1"
     label 'process_high'
-    errorStrategy 'ignore'
 
     input:
     tuple val(meta), path(reads)

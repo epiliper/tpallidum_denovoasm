@@ -22,6 +22,7 @@ if (length(args) == 0) {
   sampname <- args[[1]]
   bamfname <- args[[2]]
   ref <- args[[3]]
+  min_depth <- as.integer(args[[4]])
 }
 
 # Files, directories, target site
@@ -40,12 +41,14 @@ n_mapped_reads <- function(bamfname) {
 }
 
 # Takes in a bam file, produces consensus sequence
-generate_consensus <- function(bamfname) {
+generate_consensus <- function(bamfname, min_depth) {
   require(Rsamtools)
   require(GenomicAlignments)
   require(Biostrings)
   require(parallel)
   ncores <- detectCores()
+
+  print(paste0("Using minimum consensus depth of ", min_depth))
 
   if (!is.na(bamfname) & class(try(scanBamHeader(bamfname), silent = T)) != "try-error") {
     # Index bam if required
@@ -63,7 +66,7 @@ generate_consensus <- function(bamfname) {
     gal <- readGAlignments(bamfname, index = baifname, param = params)
     qseq_on_ref <- sequenceLayer(mcols(gal)$seq, cigar(gal), from = "query", to = "reference")
     cm <- consensusMatrix(qseq_on_ref, as.prob = F, shift = start(gal) - 1, width = seqlengths(gal))[c("A", "C", "G", "T", "N", "-"), ]
-    poor_cov <- which(colSums(cm) < 4)
+    poor_cov <- which(colSums(cm) < min_depth)
     cm <- apply(cm, 2, function(x) x / sum(x))
     cm[, poor_cov] <- 0
     cm["N", poor_cov] <- 1
@@ -98,11 +101,11 @@ generate_consensus <- function(bamfname) {
   }
 }
 
-clean_consensus_tp <- function(sampname, bamfname, ref) {
+clean_consensus_tp <- function(sampname, bamfname, ref, min_depth) {
   # con_seqs <- lapply(bam, generate_consensus)
-  consensus = generate_consensus(bamfname)
+  consensus = generate_consensus(bamfname, min_depth)
   writeXStringSet(consensus, file = paste("./", sampname, "_consensus.fasta", sep = ""), format = "fasta")
 }
 
 # Make consensus sequence--returns TRUE if this worked
-conseq <- clean_consensus_tp(sampname, bamfname, ref)
+conseq <- clean_consensus_tp(sampname, bamfname, ref, min_depth)

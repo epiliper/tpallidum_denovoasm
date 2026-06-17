@@ -168,5 +168,10 @@ if __name__ == '__main__':
 	replaced_gene = mask_variable_region(seq_to_replace,"ACTGACCACTACCCCACACT","CAAGTTTGCATACACTTTAA","tprK V7",2)
 	masked_sequence = masked_sequence.replace(seq_to_replace,replaced_gene)
 
+    # replace ambiguous bases with N
+	nonambig = set(["A", "G", "C", "T", "N"])
+	filter = lambda b: b if b.upper() in nonambig else "N" 
+	masked_sequence = "".join([filter(b) for b in masked_sequence])
+
 
 	masked_fasta_file.write(masked_sequence)
