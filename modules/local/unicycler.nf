@@ -7,8 +7,8 @@ process DENOVO_ASSEMBLE {
 
     output:
         tuple val(meta),file("${meta.id}_assembly.gfa"),file("${meta.id}_assembly.fasta")// into Unicycler_ch
-        tuple val(meta), file("*_assembly.gfa"), emit: gfa
-        tuple val(meta), file("*assembly.fasta"), emit: fasta
+        tuple val(meta), file("${meta.id}_assembly.gfa"), emit: gfa
+        tuple val(meta), file("${meta.id}_assembly.fasta"), emit: fasta
         file("*")// into Unicycler_dump_ch
 
     script:

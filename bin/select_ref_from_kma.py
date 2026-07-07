@@ -45,7 +45,6 @@ def find_ref_in_fasta(fasta: str, ref_name: str) -> str:
 
             if l.startswith(">"):
                 if ref_name in l:
-                    print(ref_name)
                     found = True
                     ret += l # add header
                     continue

@@ -1,0 +1,5 @@
+region,linkage_required,mask_if_contiguous,mask_if_not_contiguous
+tprC,134811-136008,-,134911-136707
+tprD,152270-153459,-,152370-154160
+tprE,330059-331570,331527-335960,329102-335960
+tprIJ locus,-,-,671731-676747

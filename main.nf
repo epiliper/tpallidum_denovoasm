@@ -27,7 +27,8 @@ workflow {
         params.bbduk_filter,
         params.min_contig_len_bp,
         params.min_consensus_depth,
-        params.n_end_glue_bases,
+        params.mask_sheet,
+
         params.outdir
     )
 

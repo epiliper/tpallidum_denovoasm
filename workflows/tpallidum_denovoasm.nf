@@ -59,11 +59,9 @@ include { CONSENSUS as CONSENSUS_ROUND1 } from '../modules/local/consensus'
 include { CONSENSUS as CONSENSUS_ROUND2 } from '../modules/local/consensus'
 include { CONSENSUS as CONSENSUS_ROUND3 } from '../modules/local/consensus'
 
-include { TRIM_END_GLUE } from '../modules/local/trim_end_glue.nf'
-
-include { PILON } from '../modules/nf-core/pilon/main'
-
+include { SPLIT_CONTIGS } from '../modules/local/split_contigs'
 include { MASK_TP_FASTA } from '../modules/local/mask_tp_fasta'
+include { CONTIGUITY_GENE_MASK } from '../modules/local/contiguity_gene_mask'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
@@ -77,7 +75,7 @@ workflow TPALLIDUM_DENOVOASM {
     bbduk_remove
     min_contig_len_bp
     min_consensus_depth
-    n_end_glue_bases
+    mask_sheet
     outdir
 
     main:
@@ -155,6 +153,9 @@ workflow TPALLIDUM_DENOVOASM {
 
     SELECT_BEST_KMA_REF(KMA_KMA.out.res, ref_fasta).set { chosen_ref_ch }
 
+    SPLIT_CONTIGS(contigs_ch.join(chosen_ref_ch))
+    SPLIT_CONTIGS.out.contigs.set { contigs_ch }
+
     /////////////////////////////////////
     // PART 3: GENERATE INITIAL CONSENSUS
     ////////////////////////////////////
@@ -166,7 +167,6 @@ workflow TPALLIDUM_DENOVOASM {
     CREATE_SCAFFOLD(
         MINIMAP2_IDX_ALN_ASM.out.bam.join(chosen_ref_ch),
         min_contig_len_bp,
-        n_end_glue_bases,
     )
 
     ///////////////////////////////////////////////////////
@@ -203,20 +203,26 @@ workflow TPALLIDUM_DENOVOASM {
         min_consensus_depth,
     )
 
-    TRIM_END_GLUE(CONSENSUS_ROUND1.out.fasta, n_end_glue_bases)
-
     // round 2
-    BOWTIE2_INDEX_ROUND2(TRIM_END_GLUE.out.fasta)
+    BOWTIE2_INDEX_ROUND2(CONSENSUS_ROUND1.out.fasta)
     BOWTIE2_ALIGN_ROUND2(all_na_fastq.join(BOWTIE2_INDEX_ROUND2.out.index), "to_intermediate", false, true)
     PICARD_MARKDUPLICATES_ROUND2(BOWTIE2_ALIGN_ROUND2.out.bam)
 
     CONSENSUS_ROUND2(
-        PICARD_MARKDUPLICATES_ROUND2.out.bam.join(PICARD_MARKDUPLICATES_ROUND2.out.bai).join(TRIM_END_GLUE.out.fasta),
+        PICARD_MARKDUPLICATES_ROUND2.out.bam
+            .join(PICARD_MARKDUPLICATES_ROUND2.out.bai).join(CONSENSUS_ROUND1.out.fasta),
         "final",
         min_consensus_depth,
     )
 
-    MASK_TP_FASTA(CONSENSUS_ROUND2.out.fasta)
+    CONTIGUITY_GENE_MASK(
+        CONSENSUS_ROUND2.out.fasta
+            .join(MINIMAP2_IDX_ALN_ASM.out.bam)
+            .join(MINIMAP2_IDX_ALN_ASM.out.bai),
+        mask_sheet
+    )
+
+    MASK_TP_FASTA(CONTIGUITY_GENE_MASK.out.fasta)
 
 
     /// END: CORE WORKFLOW EP ///
