@@ -30,6 +30,8 @@ include { KMA_KMA } from '../modules/nf-core/kma/kma/main'
 include { KMA_INDEX } from '../modules/nf-core/kma/index/main'
 include { SELECT_BEST_KMA_REF } from '../modules/local/select_best_kma_ref'
 
+include { TRANSFER_ANNOTATIONS } from '../modules/local/transfer_annotations.nf'
+
 include { MINIMAP2_IDX_ALN_ASM } from '../modules/local/minimap2'
 
 include { BOWTIE2_BUILD as BOWTIE2_INDEX_DB_REF } from '../modules/nf-core/bowtie2/build/main'
@@ -76,6 +78,8 @@ workflow TPALLIDUM_DENOVOASM {
     min_contig_len_bp
     min_consensus_depth
     mask_sheet
+    annot_master_coords
+    annot_coord_lookups // list of files
     outdir
 
     main:
@@ -100,6 +104,7 @@ workflow TPALLIDUM_DENOVOASM {
     /////////////////////////////////////////////////////////////////////
 
     channel.value([[id: file(ref_fasta).baseName], file(ref_fasta)]).set { ref_ch }
+    channel.value([annot_coord_lookups]).set { ref_coordinate_ch }
 
     SAMTOOLS_FAIDX(ref_ch, false)
     KMA_INDEX(ref_ch)
@@ -179,10 +184,7 @@ workflow TPALLIDUM_DENOVOASM {
 
     // combine GA, TRNA, RRNA, and bbduk-filtered reads
     MERGE_ALL_NA(
-        fastq_ch
-            .join(SAMTOOLS_FASTQ_RNA.out.fastq)
-            .join(BBDUK_REMOVE.out.contam)
-            .dump(tag: "merge all input")
+        fastq_ch.join(SAMTOOLS_FASTQ_RNA.out.fastq).join(BBDUK_REMOVE.out.contam).dump(tag: "merge all input")
     )
 
     MERGE_ALL_NA.out.fastq.set { all_na_fastq }
@@ -209,17 +211,24 @@ workflow TPALLIDUM_DENOVOASM {
     PICARD_MARKDUPLICATES_ROUND2(BOWTIE2_ALIGN_ROUND2.out.bam)
 
     CONSENSUS_ROUND2(
-        PICARD_MARKDUPLICATES_ROUND2.out.bam
-            .join(PICARD_MARKDUPLICATES_ROUND2.out.bai).join(CONSENSUS_ROUND1.out.fasta),
+        PICARD_MARKDUPLICATES_ROUND2.out.bam.join(PICARD_MARKDUPLICATES_ROUND2.out.bai).join(CONSENSUS_ROUND1.out.fasta),
         "final",
         min_consensus_depth,
     )
 
+    // MAFFT_ALIGN_2SEQS(
+    //     chosen_ref_ch.join(CONSENSUS_ROUND2.out.fasta)
+    // )
+
+    TRANSFER_ANNOTATIONS(
+        CONSENSUS_ROUND2.out.join(chosen_ref_ch),
+        annot_master_coords,
+        annot_coord_lookups,
+    )
+
     CONTIGUITY_GENE_MASK(
-        CONSENSUS_ROUND2.out.fasta
-            .join(MINIMAP2_IDX_ALN_ASM.out.bam)
-            .join(MINIMAP2_IDX_ALN_ASM.out.bai),
-        mask_sheet
+        CONSENSUS_ROUND2.out.fasta.join(MINIMAP2_IDX_ALN_ASM.out.bam).join(MINIMAP2_IDX_ALN_ASM.out.bai),
+        mask_sheet,
     )
 
     MASK_TP_FASTA(CONTIGUITY_GENE_MASK.out.fasta)
