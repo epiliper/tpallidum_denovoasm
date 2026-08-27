@@ -11,11 +11,11 @@ process MEGAHIT {
     tuple val(meta), path(reads) // no read 2
 
     output:
-    tuple val(meta), path("*.contigs.fa.gz")                            , emit: contigs
-    tuple val(meta), path("intermediate_contigs/k*.contigs.fa.gz")      , emit: k_contigs
-    tuple val(meta), path("intermediate_contigs/k*.addi.fa.gz")         , emit: addi_contigs
-    tuple val(meta), path("intermediate_contigs/k*.local.fa.gz")        , emit: local_contigs
-    tuple val(meta), path("intermediate_contigs/k*.final.contigs.fa.gz"), emit: kfinal_contigs
+    tuple val(meta), path("*.contigs.fa")                            , emit: contigs
+    tuple val(meta), path("intermediate_contigs/k*.contigs.fa")      , emit: k_contigs
+    tuple val(meta), path("intermediate_contigs/k*.addi.fa")         , emit: addi_contigs
+    tuple val(meta), path("intermediate_contigs/k*.local.fa")        , emit: local_contigs
+    tuple val(meta), path("intermediate_contigs/k*.final.contigs.fa"), emit: kfinal_contigs
     tuple val(meta), path('*.log')                                      , emit: log
     tuple val("${task.process}"), val('megahit'), eval("megahit -v | sed 's/MEGAHIT v//'"), topic: versions, emit: versions_megahit
 
@@ -35,12 +35,12 @@ process MEGAHIT {
         ${reads_command} \\
         --out-prefix ${prefix}
 
-    pigz \\
-        --no-name \\
-        -p ${task.cpus} \\
-        ${args2} \\
-        megahit_out/*.fa \\
-        megahit_out/intermediate_contigs/*.fa
+    #pigz \\
+    #    --no-name \\
+    #    -p ${task.cpus} \\
+    #    ${args2} \\
+    #    megahit_out/*.fa \\
+    #    megahit_out/intermediate_contigs/*.fa
 
     mv megahit_out/* .
     """
@@ -48,12 +48,12 @@ process MEGAHIT {
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    mkdir -p intermediate_contigs
-    echo "" | gzip > ${prefix}.contigs.fa.gz
-    echo "" | gzip > intermediate_contigs/k21.contigs.fa.gz
-    echo "" | gzip > intermediate_contigs/k21.addi.fa.gz
-    echo "" | gzip > intermediate_contigs/k21.local.fa.gz
-    echo "" | gzip > intermediate_contigs/k21.final.contigs.fa.gz
+    // mkdir -p intermediate_contigs
+    // echo "" | gzip > ${prefix}.contigs.fa.gz
+    // echo "" | gzip > intermediate_contigs/k21.contigs.fa.gz
+    // echo "" | gzip > intermediate_contigs/k21.addi.fa.gz
+    // echo "" | gzip > intermediate_contigs/k21.local.fa.gz
+    // echo "" | gzip > intermediate_contigs/k21.final.contigs.fa.gz
     touch ${prefix}.log
     """
 }

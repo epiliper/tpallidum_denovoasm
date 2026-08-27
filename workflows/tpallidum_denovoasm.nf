@@ -17,7 +17,7 @@ include { SAMTOOLS_FAIDX } from '../modules/nf-core/samtools/faidx/main'
 include { SAMTOOLS_FASTQ } from '../modules/nf-core/samtools/fastq/main'
 include { SAMTOOLS_FASTQ as SAMTOOLS_FASTQ_RNA } from '../modules/nf-core/samtools/fastq/main'
 
-include { PICARD_MARKDUPLICATES } from '../modules/nf-core/picard/markduplicates/main'
+include { PICARD_MARKDUPLICATES as PICARD_MARKDUPLICATES_GNA_TRNA } from '../modules/nf-core/picard/markduplicates/main'
 include { PICARD_MARKDUPLICATES as PICARD_MARKDUPLICATES_RRNA } from '../modules/nf-core/picard/markduplicates/main'
 
 include { PICARD_MARKDUPLICATES as PICARD_MARKDUPLICATES_ROUND1 } from '../modules/nf-core/picard/markduplicates/main'
@@ -62,6 +62,7 @@ include { CONSENSUS as CONSENSUS_ROUND2 } from '../modules/local/consensus'
 include { CONSENSUS as CONSENSUS_ROUND3 } from '../modules/local/consensus'
 
 include { SPLIT_CONTIGS } from '../modules/local/split_contigs'
+include { TRIM_END_GLUE } from '../modules/local/trim_end_glue'
 include { MASK_TP_FASTA } from '../modules/local/mask_tp_fasta'
 include { CONTIGUITY_GENE_MASK } from '../modules/local/contiguity_gene_mask'
 /*
@@ -77,6 +78,7 @@ workflow TPALLIDUM_DENOVOASM {
     bbduk_remove
     min_contig_len_bp
     min_consensus_depth
+    end_glue_bp
     mask_sheet
     annot_master_coords
     annot_coord_lookups // list of files
@@ -127,15 +129,16 @@ workflow TPALLIDUM_DENOVOASM {
     // join by meta here
     SAMTOOLS_MERGE_COMBINE_GNA_TRNA(ch_merge_in)
 
-    PICARD_MARKDUPLICATES(
+    PICARD_MARKDUPLICATES_GNA_TRNA (
         SAMTOOLS_MERGE_COMBINE_GNA_TRNA.out.bam
     )
 
     // convert back to fastq for subsequent steps
     SAMTOOLS_FASTQ(
-        PICARD_MARKDUPLICATES.out.bam,
+        PICARD_MARKDUPLICATES_GNA_TRNA.out.bam,
         false,
     )
+
     SAMTOOLS_FASTQ.out.fastq.set { fastq_raw_ch }
 
     BBDUK_REMOVE(
@@ -148,11 +151,8 @@ workflow TPALLIDUM_DENOVOASM {
     // PART 2: DENOVO ASSEMBLY, REFERENCE SELECTION
     ///////////////////////////////////////////////
 
-    // MEGAHIT(fastq_ch)
-    DENOVO_ASSEMBLE(fastq_ch)
-
-    // MEGAHIT.out.contigs.set { contigs_ch }
-    DENOVO_ASSEMBLE.out.fasta.set { contigs_ch }
+    MEGAHIT(fastq_ch)
+    MEGAHIT.out.contigs.set { contigs_ch }
 
     KMA_KMA(contigs_ch.combine(db_idx_kma))
 
@@ -172,6 +172,7 @@ workflow TPALLIDUM_DENOVOASM {
     CREATE_SCAFFOLD(
         MINIMAP2_IDX_ALN_ASM.out.bam.join(chosen_ref_ch),
         min_contig_len_bp,
+        end_glue_bp,
     )
 
     ///////////////////////////////////////////////////////
@@ -216,24 +217,26 @@ workflow TPALLIDUM_DENOVOASM {
         min_consensus_depth,
     )
 
-    // MAFFT_ALIGN_2SEQS(
-    //     chosen_ref_ch.join(CONSENSUS_ROUND2.out.fasta)
-    // )
+    // trim the consensus sequence to be same length as db ref based on alignment
+    TRIM_END_GLUE(
+        CONSENSUS_ROUND2.out.fasta.join(chosen_ref_ch), 
+        end_glue_bp
+    )
 
     TRANSFER_ANNOTATIONS(
-        CONSENSUS_ROUND2.out.join(chosen_ref_ch),
+        TRIM_END_GLUE.out.fasta.join(chosen_ref_ch),
         annot_master_coords,
         annot_coord_lookups,
     )
 
     CONTIGUITY_GENE_MASK(
-        CONSENSUS_ROUND2.out.fasta.join(MINIMAP2_IDX_ALN_ASM.out.bam).join(MINIMAP2_IDX_ALN_ASM.out.bai),
+        TRIM_END_GLUE.out.fasta
+            .join(MINIMAP2_IDX_ALN_ASM.out.bam)
+            .join(MINIMAP2_IDX_ALN_ASM.out.bai),
         mask_sheet,
     )
 
     MASK_TP_FASTA(CONTIGUITY_GENE_MASK.out.fasta)
-
-
     /// END: CORE WORKFLOW EP ///
     ////////////////////////////
 

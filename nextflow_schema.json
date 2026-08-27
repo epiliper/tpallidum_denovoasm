@@ -43,6 +43,10 @@
 					"type": "integer",
 					"description": "minimum depth of position in order to be called in consensus"
 				},
+				"end_glue_bp": {
+					"type": "integer",
+					"description": "number of bp to pad termini from opposite terminal, used to help align reads spanning break in the circular genome"
+				},
 				"bbduk_filter": {
 					"type": "string",
 					"format": "path",

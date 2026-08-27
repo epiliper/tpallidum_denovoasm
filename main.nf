@@ -26,6 +26,7 @@ workflow {
         params.bbduk_filter,
         params.min_contig_len_bp,
         params.min_consensus_depth,
+        params.end_glue_bp,
         params.mask_sheet,
         params.annot_master_coords,
         params.annot_coord_lookups,

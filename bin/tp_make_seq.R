@@ -27,6 +27,7 @@ if (length(args) == 0) {
     bamname <- args[[2]]
     reffname <- args[[3]]
     min_contig_len <- as.numeric(args[[4]])
+    end_glue_len <- as.numeric(args[[5]])
 }
 
 con_seq_final = ""
@@ -77,7 +78,7 @@ report_contig_stats <- function(query_seqs, num_fastas, scaf_len, output_file) {
 }
 
 # Make a new reference from scaffolds
-make_ref_from_assembly <- function(bamfname, reffname) {
+make_ref_from_assembly <- function(bamfname, reffname, end_glue_len) {
     require(Rsamtools)
     require(GenomicAlignments)
     require(parallel)
@@ -203,6 +204,20 @@ make_ref_from_assembly <- function(bamfname, reffname) {
             con_seq_final <- con_seq
         }
 
+        if (end_glue_len > 0) {
+					seq_chr = as.character(con_seq_final)
+					n <- nchar(seq_chr)
+
+					stopifnot(end_glue_len < n)
+
+					con_seq_final <- DNAStringSet(paste0( 
+							substr(seq_chr, start = n - end_glue_len, stop = n),
+							seq_chr,
+							substr(seq_chr, start = 1, stop = end_glue_len)
+						))
+
+        }
+
         names(con_seq_final) <- sub(".bam", "_consensus", basename(bamfname))
 
         writeXStringSet(
@@ -224,6 +239,6 @@ make_ref_from_assembly <- function(bamfname, reffname) {
 
 
 # Make a new reference scaffold
-newref <- make_ref_from_assembly(bamname, reffname)
+newref <- make_ref_from_assembly(bamname, reffname, end_glue_len)
 
 if (is.na(newref)) print("Failed to generate consensus from scaffolds")
