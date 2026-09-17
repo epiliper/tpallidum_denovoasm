@@ -1,6 +1,6 @@
 process SPLIT_CONTIGS {
         tag "${meta.id}"
-        label "process_single"
+        label "process_medium"
         container "quay.io/epil02/biopython_pandas_numpy_regex:0.02"
 
         input:

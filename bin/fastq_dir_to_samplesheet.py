@@ -2,11 +2,52 @@ from glob import glob
 from collections import defaultdict
 from csv import DictWriter
 import os
+import re
+
+FASTQ_SUFFIXES = (".fastq", ".fastq.gz", ".fq", ".fq.gz")
+
+
+def is_fastq(filename: str) -> bool:
+    return filename.lower().endswith(FASTQ_SUFFIXES)
+
+def find_fastqs(directory: str, sample_prefix: str) -> set[str]:
+    if not directory.startswith("s3://"):
+        return {
+            os.path.join(directory, filename)
+            for filename in glob(
+                f"**/*{sample_prefix}*", root_dir=directory, recursive=True
+            )
+            if is_fastq(filename)
+        }
+
+    try:
+        import boto3
+    except ImportError as error:
+        raise ImportError("boto3 is required when the input directory is an S3 URI") from error
+
+    bucket, _, prefix = directory[5:].partition("/")
+    if not bucket:
+        raise ValueError(f"Invalid S3 directory: {directory}")
+
+    prefix = prefix.strip("/")
+    if prefix:
+        prefix += "/"
+
+    files = set()
+    paginator = boto3.client("s3").get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        for item in page.get("Contents", []):
+            key = item["Key"]
+            filename = key.rsplit("/", 1)[-1]
+            if sample_prefix in filename and is_fastq(filename):
+                files.add(f"s3://{bucket}/{key}")
+
+    return files
 
 def get_mate_idx(filename: str):
-    r1, r2 = filename.rfind("1"), filename.rfind("2")
-    if r1 & r2: return 0
-    return 1 if r1 else 2
+    filename = os.path.basename(filename)
+    matches = re.findall(r"(?:R|^|[._-])([12])(?=[._-]|$)", filename, re.IGNORECASE)
+    return int(matches[-1]) if matches else 0
 
 def find_pairs(reads: set[str], sample_suffix: str) -> dict[str, list[str]]:
     matemap: dict[str, list[str]] = defaultdict(list[str])
@@ -19,92 +60,65 @@ def find_pairs(reads: set[str], sample_suffix: str) -> dict[str, list[str]]:
 
     for v in matemap.values():
         v.sort(key = lambda x: get_mate_idx(x))
-        assert(len(v) <= 2)
+        assert len(v) <= 2, f"Invalid mate bucket: {v}"
 
     return matemap
 
 def create_samplesheet():
-    trna_files = set([os.path.join(args.dir, f) for f in glob(f"**/*{args.tprefix}*[fastq|fq]*", root_dir = args.dir, recursive = True)])
-    rrna_files = set([os.path.join(args.dir, f) for f in glob(f"**/*{args.rprefix}*[fastq|fq]*", root_dir = args.dir, recursive = True)])
-    gna_files = set([os.path.join(args.dir, f) for f in glob(f"**/*{args.gprefix}*[fastq|fq]*", root_dir = args.dir, recursive = True)])
-
-    intersect = set.intersection(trna_files, rrna_files, gna_files)
-
-    if len(intersect) > 0:
-        raise ValueError(f"patterns for nucleotide types ({args.tprefix} {args.rprefix} {args.gprefix}) are not distinctive: these files are associated with more than one nucleic acid type: {intersect}")
-
-    trna_files = find_pairs(trna_files, args.tprefix)
-    rrna_files = find_pairs(rrna_files, args.rprefix)
-    gna_files = find_pairs(gna_files, args.gprefix)
-
-    sample_df: dict[str, dict[str, str]] = defaultdict(dict)
-
-    for sample, values in trna_files.items():
-        r1 = values[0]
-        try:
-            r2 = values[1] 
-        except IndexError:
-            r2 = ""
-
-        sample_df[sample]["trna_fastq_1"] = r1
-        sample_df[sample]["trna_fastq_2"] = r2
-
-    for sample, values in rrna_files.items():
-        r1 = values[0]
-        try:
-            r2 = values[1] 
-        except IndexError:
-            r2 = ""
-
-        sample_df[sample]["rrna_fastq_1"] = r1
-        sample_df[sample]["rrna_fastq_2"] = r2
-
-    for sample, values in gna_files.items():
-        r1 = values[0]
-        try:
-            r2 = values[1] 
-        except IndexError:
-            r2 = ""
-
-        sample_df[sample]["gna_fastq_1"] = r1
-        sample_df[sample]["gna_fastq_2"] = r2
-
     fields = ["sample", "gna_fastq_1", "gna_fastq_2", "rrna_fastq_1", "rrna_fastq_2", "trna_fastq_1", "trna_fastq_2"]
+    sample_rows = []
+    missing_samples = []
 
-    # remove any samples missing a nucleic acid type
-    to_del = []
-    for k, v in sample_df.items():
-        if "gna_fastq_1" not in v:
-            to_del.append(k)
+    for directory in args.dir:
+        trna_files = find_fastqs(directory, args.tprefix)
+        rrna_files = find_fastqs(directory, args.rprefix)
+        gna_files = find_fastqs(directory, args.gprefix)
+        intersect = set.intersection(trna_files, rrna_files, gna_files)
 
-        elif "rrna_fastq_1" not in v:
-            to_del.append(k)
+        if intersect:
+            raise ValueError(f"patterns for nucleotide types ({args.tprefix} {args.rprefix} {args.gprefix}) are not distinctive in {directory}: these files are associated with more than one nucleic acid type: {intersect}")
 
-        elif "trna_fastq_1" not in v:
-            to_del.append(k)
+        pairs = (
+            ("trna", find_pairs(trna_files, args.tprefix)),
+            ("rrna", find_pairs(rrna_files, args.rprefix)),
+            ("gna", find_pairs(gna_files, args.gprefix)),
+        )
+        samples: dict[str, dict[str, str]] = defaultdict(dict)
+        for nucleic_type, paired_files in pairs:
+            for sample, values in paired_files.items():
+                samples[sample][f"{nucleic_type}_fastq_1"] = values[0]
+                samples[sample][f"{nucleic_type}_fastq_2"] = (
+                    values[1] if len(values) > 1 else ""
+                )
 
-    if to_del:
-        print(f"found {len(to_del)} samples with missing fastqs for at least one nucleotide type. These will be removed from the final samplesheet.")
+        for sample, values in samples.items():
+            if not all(
+                f"{nucleic_type}_fastq_1" in values
+                for nucleic_type in ("gna", "rrna", "trna")
+            ):
+                missing_samples.append((directory, sample))
+                continue
+            sample_rows.append({"sample": sample, **values})
 
-    for k in to_del:
-        print(f"removing {k}")
-        del sample_df[k]
+    if missing_samples:
+        print(f"found {len(missing_samples)} samples with missing fastqs for at least one nucleotide type. These will be removed from the final samplesheet.")
+        for directory, sample in missing_samples:
+            print(f"removing {sample} from {directory}")
 
-    if not sample_df:
+    if not sample_rows:
         raise ValueError("All samples identified had at least one nucleic acid type FASTQ missing; the samplesheet is empty.")
 
 
     with open(args.output, "w") as outf:
         writer = DictWriter(outf, fields)
         writer.writeheader()
-        for k in sample_df:
-            writer.writerow({field: sample_df[k].get(field) or k for field in fields})
+        writer.writerows(sample_rows)
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
 
     parser = ArgumentParser()
-    parser.add_argument("dir", help = "directory that contains all subdirs for nucleic acid types")
+    parser.add_argument("dir", nargs="+", help = "local directories or S3 URIs that contain subdirs for nucleic acid types")
 
     parser.add_argument("--tprefix", required = True, help = "prefix that distinguishes tRNA filenames", type = str)
     parser.add_argument("--rprefix", required = True, help = "prefix that distinguishes rRNA filenames")
@@ -114,4 +128,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     create_samplesheet()
-

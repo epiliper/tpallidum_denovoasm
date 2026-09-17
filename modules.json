@@ -85,9 +85,19 @@
                         "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
                         "installed_by": ["modules"]
                     },
+                    "seqtk/sample": {
+                        "branch": "master",
+                        "git_sha": "d672aca9cdef89ee649b340c08877ae40a19d5c0",
+                        "installed_by": ["modules"]
+                    },
                     "seqtk/seq": {
                         "branch": "master",
                         "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
+                        "installed_by": ["modules"]
+                    },
+                    "seqtk/subseq": {
+                        "branch": "master",
+                        "git_sha": "183591f15495ea2e473df6e0794eb33df6567d72",
                         "installed_by": ["modules"]
                     }
                 }

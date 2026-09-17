@@ -23,6 +23,7 @@ workflow {
     TPALLIDUM_DENOVOASM(
         PIPELINE_INITIALISATION.out.samplesheet,
         params.refs,
+        params.downsample_reads,
         params.bbduk_filter,
         params.min_contig_len_bp,
         params.min_consensus_depth,

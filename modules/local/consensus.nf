@@ -1,6 +1,6 @@
 process CONSENSUS {
         tag "${meta.id}"
-        label "process_medium"
+        label "process_high"
         container "quay.io/michellejlin/tpallidum_wgs"
 
         input:

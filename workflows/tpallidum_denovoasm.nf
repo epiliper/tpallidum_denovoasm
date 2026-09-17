@@ -24,7 +24,6 @@ include { PICARD_MARKDUPLICATES as PICARD_MARKDUPLICATES_ROUND1 } from '../modul
 include { PICARD_MARKDUPLICATES as PICARD_MARKDUPLICATES_ROUND2 } from '../modules/nf-core/picard/markduplicates/main'
 
 include { MEGAHIT } from '../modules/nf-core/megahit/main'
-include { DENOVO_ASSEMBLE } from '../modules/local/unicycler'
 
 include { KMA_KMA } from '../modules/nf-core/kma/kma/main'
 include { KMA_INDEX } from '../modules/nf-core/kma/index/main'
@@ -33,6 +32,9 @@ include { SELECT_BEST_KMA_REF } from '../modules/local/select_best_kma_ref'
 include { TRANSFER_ANNOTATIONS } from '../modules/local/transfer_annotations.nf'
 
 include { MINIMAP2_IDX_ALN_ASM } from '../modules/local/minimap2'
+include { SEQTK_SAMPLE as SEQTK_SAMPLE_GNA  } from '../modules/nf-core/seqtk/sample/main'
+include { SEQTK_SAMPLE as SEQTK_SAMPLE_TRNA } from '../modules/nf-core/seqtk/sample/main'
+include { SEQTK_SAMPLE as SEQTK_SAMPLE_RRNA } from '../modules/nf-core/seqtk/sample/main'
 
 include { BOWTIE2_BUILD as BOWTIE2_INDEX_DB_REF } from '../modules/nf-core/bowtie2/build/main'
 include { BOWTIE2_BUILD as BOWTIE2_INDEX_CHOSEN_REF } from '../modules/nf-core/bowtie2/build/main'
@@ -75,6 +77,7 @@ workflow TPALLIDUM_DENOVOASM {
     take:
     ch_samplesheet // channel: samplesheet read in from --input
     ref_fasta
+    downsample_reads
     bbduk_remove
     min_contig_len_bp
     min_consensus_depth
@@ -105,6 +108,21 @@ workflow TPALLIDUM_DENOVOASM {
     // PART 1: get TP-mapping reads, align gNA and tRNA, dedup and filter
     /////////////////////////////////////////////////////////////////////
 
+    // downsample
+    if (downsample_reads != 0) {
+        SEQTK_SAMPLE_GNA(na_channels.gna, downsample_reads)
+        SEQTK_SAMPLE_TRNA(na_channels.trna, downsample_reads)
+        SEQTK_SAMPLE_RRNA(na_channels.rrna, downsample_reads)
+
+        SEQTK_SAMPLE_GNA.out.reads.set { gna_ch }
+        SEQTK_SAMPLE_TRNA.out.reads.set { trna_ch }
+        SEQTK_SAMPLE_RRNA.out.reads.set { rrna_ch }
+    } else {
+        na_channels.gna.set { gna_ch }
+        na_channels.trna.set { trna_ch }
+        na_channels.rrna.set { rrna_ch }
+    }
+
     channel.value([[id: file(ref_fasta).baseName], file(ref_fasta)]).set { ref_ch }
     channel.value([annot_coord_lookups]).set { ref_coordinate_ch }
 
@@ -116,8 +134,8 @@ workflow TPALLIDUM_DENOVOASM {
     BOWTIE2_INDEX_DB_REF.out.index.map { _meta, index -> index }.set { db_idx_bwa }
 
     // don't align rrna
-    BOWTIE2_ALIGN_GNA(na_channels.gna.combine(db_idx_bwa), "GNA", false, true)
-    BOWTIE2_ALIGN_TRNA(na_channels.trna.combine(db_idx_bwa), "TRNA", false, true)
+    BOWTIE2_ALIGN_GNA(gna_ch.combine(db_idx_bwa), "GNA", false, true)
+    BOWTIE2_ALIGN_TRNA(trna_ch.combine(db_idx_bwa), "TRNA", false, true)
 
     BOWTIE2_ALIGN_GNA.out.bam
         .join(BOWTIE2_ALIGN_TRNA.out.bam)
@@ -179,7 +197,7 @@ workflow TPALLIDUM_DENOVOASM {
     // PART 3.5: ALIGN AND DEDUP rRNA, MERGE WITH OTHER NAS
     ///////////////////////////////////////////////////////
 
-    BOWTIE2_ALIGN_RRNA(na_channels.rrna.join(BOWTIE2_INDEX_CHOSEN_REF.out.index), "rrna", false, true)
+    BOWTIE2_ALIGN_RRNA(rrna_ch.join(BOWTIE2_INDEX_CHOSEN_REF.out.index), "rrna", false, true)
     PICARD_MARKDUPLICATES_RRNA(BOWTIE2_ALIGN_RRNA.out.bam)
     SAMTOOLS_FASTQ_RNA(PICARD_MARKDUPLICATES_RRNA.out.bam, false)
 
