@@ -46,6 +46,10 @@
 				"downsample_reads": {
 					"type": "integer"
 				},
+				"verbose": {
+					"type": "boolean",
+					"description": "include all pipeline output in output dir. This can use lots of disk space"
+				},
 				"end_glue_bp": {
 					"type": "integer",
 					"description": "number of bp to pad termini from opposite terminal, used to help align reads spanning break in the circular genome"

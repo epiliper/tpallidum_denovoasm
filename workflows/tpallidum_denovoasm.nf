@@ -247,6 +247,8 @@ workflow TPALLIDUM_DENOVOASM {
         annot_coord_lookups,
     )
 
+    MASK_TP_FASTA(TRIM_END_GLUE.out.fasta)
+
     CONTIGUITY_GENE_MASK(
         TRIM_END_GLUE.out.fasta
             .join(MINIMAP2_IDX_ALN_ASM.out.bam)
@@ -254,7 +256,6 @@ workflow TPALLIDUM_DENOVOASM {
         mask_sheet,
     )
 
-    MASK_TP_FASTA(CONTIGUITY_GENE_MASK.out.fasta)
     /// END: CORE WORKFLOW EP ///
     ////////////////////////////
 
