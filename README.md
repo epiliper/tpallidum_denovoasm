@@ -39,6 +39,20 @@ NEG_tp_filtered.fastq.gz
 sample: NEG
 ```
 
+## Options
+
+To see all options:
+
+if running locally:
+```bash
+nextflow run /path/to/tpallidum_denovoasm/main.nf --help
+```
+
+if running off a git commit (example: latest):
+```bash
+nextflow run epiliper/tpallidum_denovoasm -r main -latest --help
+```
+
 samples with one or more missing NA files will be excluded from the samplesheet.
 
 ## Contact:
